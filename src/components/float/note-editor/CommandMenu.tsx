@@ -1,6 +1,5 @@
 
-import React, { useEffect, useRef } from 'react';
-import { LucideIcon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { 
   Bold, 
   Italic, 
@@ -41,6 +40,16 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
   filterValue
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  
+  const filteredCommands = COMMANDS.filter(cmd => 
+    !filterValue || cmd.label.toLowerCase().includes(filterValue.toLowerCase().replace('/', ''))
+  );
+  
+  // Reset selectedIndex when filter changes
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [filterValue]);
   
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -50,8 +59,27 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
     };
     
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
+      if (!isOpen) return;
+      
+      switch (event.key) {
+        case 'Escape':
+          onClose();
+          event.preventDefault();
+          break;
+        case 'ArrowDown':
+          setSelectedIndex(prev => (prev + 1) % filteredCommands.length);
+          event.preventDefault();
+          break;
+        case 'ArrowUp':
+          setSelectedIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
+          event.preventDefault();
+          break;
+        case 'Enter':
+          if (filteredCommands.length > 0) {
+            onSelect(filteredCommands[selectedIndex].id);
+            event.preventDefault();
+          }
+          break;
       }
     };
     
@@ -64,15 +92,11 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, onSelect, filteredCommands, selectedIndex]);
   
   if (!isOpen) {
     return null;
   }
-  
-  const filteredCommands = COMMANDS.filter(cmd => 
-    !filterValue || cmd.label.toLowerCase().includes(filterValue.toLowerCase().replace('/', ''))
-  );
   
   return (
     <div
@@ -93,11 +117,12 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
             No commands found
           </div>
         ) : (
-          filteredCommands.map((command) => (
+          filteredCommands.map((command, index) => (
             <button
               key={command.id}
-              className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-[#2A2A2A] text-left"
+              className={`flex items-center w-full px-3 py-2 text-sm text-white text-left ${index === selectedIndex ? 'bg-[#2A2A2A]' : 'hover:bg-[#2A2A2A]'}`}
               onClick={() => onSelect(command.id)}
+              onMouseEnter={() => setSelectedIndex(index)}
             >
               <span className="mr-2 text-[#8E9196]">{command.icon}</span>
               <span>{command.label}</span>

@@ -1,3 +1,4 @@
+
 /**
  * Apply formatting to the selected text in a textarea
  */
@@ -188,17 +189,19 @@ export const getCursorCoordinates = (
 
 /**
  * Check for slash command at cursor position
+ * Returns the command text (including the slash) if found
  */
 export const checkForSlashCommand = (text: string): string | null => {
-  // Simple check for a slash at the end of text or preceded by space/newline
-  if (text.endsWith('/')) {
-    return '/';
+  // Check for slash command pattern in the text
+  const match = text.match(/(?:^|\s)(\/\w*)$/);
+  
+  if (match) {
+    return match[1]; // Return the matched slash command
   }
   
-  // Match /command
-  const match = text.match(/(?:^|\s)\/(\w*)$/);
-  if (match) {
-    return `/${match[1]}`;
+  // Simple check for just a slash at the beginning of a line or after space
+  if (text.endsWith('/') && (text.length === 1 || text[text.length - 2] === ' ' || text[text.length - 2] === '\n')) {
+    return '/';
   }
   
   return null;

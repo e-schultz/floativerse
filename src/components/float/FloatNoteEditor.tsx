@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -73,7 +74,6 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       setMenuPosition(position);
       setCommandFilter(slashCommand);
       setShowCommandMenu(true);
-      console.log('Slash command detected:', slashCommand, 'Position:', position);
     } else {
       setShowCommandMenu(false);
     }
@@ -81,16 +81,31 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   
   // Handle keyboard events in the textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Close command menu on escape
-    if (e.key === 'Escape' && showCommandMenu) {
-      setShowCommandMenu(false);
-      e.preventDefault();
-    }
-    
-    // Close menu on enter if it's open
-    if (e.key === 'Enter' && showCommandMenu) {
-      setShowCommandMenu(false);
-      e.preventDefault();
+    // If menu is open, let the menu handle keydown events
+    if (showCommandMenu) {
+      // Only handle Escape here, other keys are handled in CommandMenu
+      if (e.key === 'Escape') {
+        setShowCommandMenu(false);
+        e.preventDefault();
+      }
+      
+      // Special handling for Tab to allow completing the command
+      if (e.key === 'Tab' && commandFilter.startsWith('/')) {
+        const matchingCommands = COMMANDS.filter(cmd => 
+          cmd.label.toLowerCase().includes(commandFilter.toLowerCase().replace('/', ''))
+        );
+        
+        if (matchingCommands.length === 1) {
+          // Auto-complete with the single match
+          handleCommandSelect(matchingCommands[0].id);
+          e.preventDefault();
+        }
+      }
+      
+      // Let arrow keys and Enter be handled by CommandMenu component
+      if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+        e.preventDefault();
+      }
     }
   };
   
@@ -111,6 +126,8 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   // Handle AI prompt
   const handleSendPrompt = async (type: string) => {
     if (!textareaRef.current) return;
+    
+    setShowCommandMenu(false);
     
     const promptInfo = processAIPrompt(textareaRef.current, type);
     if (!promptInfo) return;
@@ -175,6 +192,13 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     }
     
     setShowCommandMenu(false);
+    
+    // Focus the textarea after command execution
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 0);
   };
   
   if (isLoading && effectiveNoteId) {
