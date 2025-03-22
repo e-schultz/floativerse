@@ -1,6 +1,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/hooks/use-auth';
 
 export interface Note {
   id: string;
@@ -55,12 +56,22 @@ export const useNote = (id: string) => {
 // Create a new note
 export const useCreateNote = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   return useMutation({
     mutationFn: async (note: Omit<Note, 'id' | 'created_at' | 'updated_at' | 'user_id'>) => {
+      if (!user) {
+        throw new Error("User must be authenticated to create notes");
+      }
+      
+      const noteWithUserId = {
+        ...note,
+        user_id: user.id
+      };
+      
       const { data, error } = await supabase
         .from('notes')
-        .insert([note])
+        .insert(noteWithUserId)
         .select()
         .single();
         
