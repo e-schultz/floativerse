@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -17,7 +16,8 @@ import {
   processAIPrompt, 
   insertAIResponse, 
   getCursorCoordinates,
-  formatTextInTextarea 
+  formatTextInTextarea,
+  handleTabIndent 
 } from '@/utils/textFormatting';
 import { generateAIResponse } from '@/services/aiService';
 
@@ -30,12 +30,10 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const { id } = useParams();
   const effectiveNoteId = noteId || id;
   
-  // Command menu state
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [commandFilter, setCommandFilter] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   
-  // AI processing state
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   
   const { 
@@ -56,7 +54,6 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     isDeleting
   } = useNoteEditor({ noteId: effectiveNoteId });
   
-  // Check for slash commands when content changes
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
@@ -79,51 +76,59 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     }
   };
   
-  // Handle keyboard events in the textarea
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // If menu is open, let the menu handle keydown events
+    if (e.key === 'Tab') {
+      if (!textareaRef.current) return;
+      
+      e.preventDefault();
+      
+      const newContent = handleTabIndent(
+        textareaRef.current, 
+        e.shiftKey
+      );
+      
+      if (newContent) {
+        setContent(newContent);
+      }
+      
+      return;
+    }
+    
     if (showCommandMenu) {
-      // Only handle Escape here, other keys are handled in CommandMenu
       if (e.key === 'Escape') {
         setShowCommandMenu(false);
         e.preventDefault();
       }
       
-      // Special handling for Tab to allow completing the command
       if (e.key === 'Tab' && commandFilter.startsWith('/')) {
         const matchingCommands = COMMANDS.filter(cmd => 
           cmd.label.toLowerCase().includes(commandFilter.toLowerCase().replace('/', ''))
         );
         
         if (matchingCommands.length === 1) {
-          // Auto-complete with the single match
           handleCommandSelect(matchingCommands[0].id);
           e.preventDefault();
         }
       }
       
-      // Let arrow keys and Enter be handled by CommandMenu component
       if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
         e.preventDefault();
       }
     }
   };
   
-  // Handle clicking in the textarea to close the command menu
   const handleTextareaClick = () => {
     if (showCommandMenu) {
       setShowCommandMenu(false);
     }
   };
   
-  // Format text based on command
   const handleFormatText = (format: string) => {
     if (!textareaRef.current) return;
     const newContent = formatTextInTextarea(textareaRef.current, format);
     setContent(newContent);
   };
   
-  // Handle AI prompt
   const handleSendPrompt = async (type: string) => {
     if (!textareaRef.current) return;
     
@@ -146,7 +151,6 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setIsProcessingAI(true);
     
     try {
-      // Real AI integration
       const response = await generateAIResponse(prompt);
       
       if (response.success) {
@@ -176,7 +180,6 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     }
   };
   
-  // Handle command selection from the menu
   const handleCommandSelect = (commandId: string) => {
     console.log('Command selected:', commandId);
     
@@ -193,7 +196,6 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     
     setShowCommandMenu(false);
     
-    // Focus the textarea after command execution
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();

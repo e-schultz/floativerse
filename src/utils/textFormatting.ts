@@ -1,4 +1,3 @@
-
 /**
  * Apply formatting to the selected text in a textarea
  */
@@ -260,4 +259,102 @@ export const insertAIResponse = (
   textareaElement.setSelectionRange(newCursorPosition, newCursorPosition);
   
   return newText;
+};
+
+/**
+ * Handle Tab key for indentation in a textarea
+ * @param textareaElement The textarea element
+ * @param isShiftTab Whether Shift key is pressed (for unindent)
+ * @returns New content after indentation/unindentation
+ */
+export const handleTabIndent = (
+  textareaElement: HTMLTextAreaElement,
+  isShiftTab: boolean
+): string => {
+  const text = textareaElement.value;
+  const selStart = textareaElement.selectionStart;
+  const selEnd = textareaElement.selectionEnd;
+  
+  // Check if there's a selection spanning multiple lines
+  const hasMultiLineSelection = text.substring(selStart, selEnd).includes('\n');
+  
+  if (hasMultiLineSelection) {
+    // Handle multi-line selection
+    const selectedText = text.substring(selStart, selEnd);
+    const startLine = text.substring(0, selStart).lastIndexOf('\n') + 1;
+    const endLine = text.indexOf('\n', selEnd);
+    const textBeforeSelection = text.substring(0, startLine);
+    const textAfterSelection = endLine !== -1 ? text.substring(endLine) : '';
+    
+    // Get all the lines in the selection
+    const linesToModify = text.substring(startLine, endLine !== -1 ? endLine : text.length).split('\n');
+    
+    // Apply indentation or unindentation to each line
+    const modifiedLines = linesToModify.map(line => {
+      if (isShiftTab) {
+        // Remove indentation (2 spaces or 1 tab)
+        if (line.startsWith('  ')) {
+          return line.substring(2);
+        } else if (line.startsWith('\t')) {
+          return line.substring(1);
+        }
+        return line;
+      } else {
+        // Add indentation (2 spaces)
+        return '  ' + line;
+      }
+    });
+    
+    // Create new content
+    const newContent = textBeforeSelection + modifiedLines.join('\n') + textAfterSelection;
+    textareaElement.value = newContent;
+    
+    // Adjust selection to cover the same lines
+    const newStartPos = startLine;
+    const newEndPos = newContent.length - textAfterSelection.length;
+    textareaElement.setSelectionRange(newStartPos, newEndPos);
+    
+    return newContent;
+  } else {
+    // Handle single line or cursor position
+    const lineInfo = getCurrentLine(textareaElement);
+    if (!lineInfo) return text;
+    
+    const { lineStart, lineEnd, text: lineText } = lineInfo;
+    
+    let newLineText: string;
+    if (isShiftTab) {
+      // Remove indentation (2 spaces or 1 tab)
+      if (lineText.startsWith('  ')) {
+        newLineText = lineText.substring(2);
+      } else if (lineText.startsWith('\t')) {
+        newLineText = lineText.substring(1);
+      } else {
+        return text; // No indentation to remove
+      }
+    } else {
+      // Add indentation (2 spaces)
+      newLineText = '  ' + lineText;
+    }
+    
+    const newContent = 
+      text.substring(0, lineStart) + 
+      newLineText + 
+      text.substring(lineEnd);
+    
+    textareaElement.value = newContent;
+    
+    // Adjust cursor position
+    const cursorAdjustment = isShiftTab 
+      ? (newLineText.length - lineText.length) 
+      : 2;
+      
+    const newCursorPos = Math.max(
+      lineStart, 
+      selStart + cursorAdjustment
+    );
+    textareaElement.setSelectionRange(newCursorPos, newCursorPos);
+    
+    return newContent;
+  }
 };
