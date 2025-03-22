@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -12,14 +13,19 @@ import TagInput from './note-editor/TagInput';
 import EditorToolbar from './note-editor/EditorToolbar';
 import CommandMenu, { COMMANDS } from './note-editor/CommandMenu';
 import { 
-  checkForSlashCommand, 
-  processAIPrompt, 
-  insertAIResponse, 
-  getCursorCoordinates,
   formatTextInTextarea,
   handleTabIndent,
-  extractContextFromHeaders
+  getCursorCoordinates,
+  insertAIResponse
 } from '@/utils/textFormatting';
+import {
+  checkForSlashCommand,
+  processAIPrompt,
+  SlashCommandInfo
+} from '@/utils/commandDetection';
+import {
+  extractContextFromHeaders
+} from '@/utils/contextExtraction';
 import { generateAIResponse } from '@/services/aiService';
 
 interface FloatNoteEditorProps {
@@ -179,10 +185,18 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     if (commandWithText && (commandWithText.startsWith('/send') || commandWithText.startsWith('/chat'))) {
       promptInfo = processAIPrompt(textareaRef.current, type, commandWithText);
       
-      const sectionReferences = analyzePromptForContextReferences(commandWithText);
-      if (sectionReferences.length > 0) {
+      const { contextualPrompt, sections } = extractContextFromHeaders(content, commandWithText);
+      if (sections.length > 0) {
         setIsUsingHeaderContext(true);
-        setContextSections(sectionReferences);
+        setContextSections(sections.map(s => s.trim().split('\n')[0].replace(/^#+\s+/, '')));
+        
+        // Replace the prompt with the contextual prompt
+        if (promptInfo) {
+          promptInfo = {
+            ...promptInfo,
+            prompt: contextualPrompt
+          };
+        }
       }
     } else {
       promptInfo = processAIPrompt(textareaRef.current, type);
