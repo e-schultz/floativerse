@@ -1,12 +1,6 @@
-import React, { useRef, useEffect } from 'react';
-import { 
-  Command,
-  CommandInput,
-  CommandList,
-  CommandEmpty,
-  CommandGroup,
-  CommandItem,
-} from '@/components/ui/command';
+
+import React, { useEffect, useRef } from 'react';
+import { LucideIcon } from 'lucide-react';
 import { 
   Bold, 
   Italic, 
@@ -18,329 +12,198 @@ import {
   MessageCircle,
   Code,
   Send,
-  ArrowDown,
-  ArrowRight,
-  Bug,
   Heading1,
   Heading2,
   Heading3,
-  Heading4,
-  Heading5,
-  Heading6
 } from 'lucide-react';
 
 export type CommandOption = {
   id: string;
-  label: string;
   icon: React.ReactNode;
+  label: string;
   description: string;
   action: () => void;
 };
 
 interface CommandMenuProps {
   isOpen: boolean;
+  position: { top: number; left: number };
   onClose: () => void;
-  commands: CommandOption[];
-  searchTerm: string;
-  position?: { top: number; left: number } | null;
-  onExecuteCommand?: (commandId: string) => void;
+  onSelect: (commandId: string) => void;
+  filterValue: string;
 }
 
-const CommandMenu: React.FC<CommandMenuProps> = ({ 
-  isOpen, 
-  onClose, 
-  commands,
-  searchTerm,
+const CommandMenu: React.FC<CommandMenuProps> = ({
+  isOpen,
   position,
-  onExecuteCommand
+  onClose,
+  onSelect,
+  filterValue
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-
+  
   useEffect(() => {
-    // Click outside handler
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node) && isOpen) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         onClose();
       }
     };
-
-    // Escape key handler
-    const handleEscapeKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isOpen) {
+    
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         onClose();
       }
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscapeKey);
-
+    
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscapeKey);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen, onClose]);
   
-  // Log when the component renders to help debug visibility issues
-  useEffect(() => {
-    console.log('CommandMenu rendered, isOpen:', isOpen, 'position:', position);
-  }, [isOpen, position]);
-
-  if (!isOpen || !position) {
-    console.log('CommandMenu not showing because:', !isOpen ? 'not open' : 'no position');
+  if (!isOpen) {
     return null;
   }
-
+  
+  const filteredCommands = COMMANDS.filter(cmd => 
+    !filterValue || cmd.label.toLowerCase().includes(filterValue.toLowerCase().replace('/', ''))
+  );
+  
   return (
-    <div 
+    <div
       ref={menuRef}
-      className="absolute z-50 w-72 rounded-md border bg-[#222222] shadow-lg overflow-hidden"
+      className="absolute z-50 bg-[#222222] rounded-md shadow-lg border border-[#333333] w-64 max-h-80 overflow-y-auto overflow-x-hidden"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
       }}
     >
-      <Command className="rounded-lg border-0">
-        <CommandInput 
-          placeholder="Type a command..." 
-          value={searchTerm}
-          readOnly
-          className="bg-[#222222] text-white border-b border-[#333333]"
-        />
-        <CommandList className="bg-[#222222] text-white">
-          <CommandEmpty className="text-[#8E9196]">No results found.</CommandEmpty>
-          
-          <CommandGroup heading="Basic Editing" className="text-[#8E9196]">
-            {commands.filter(cmd => 
-              cmd.id.startsWith('format') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((command) => (
-              <CommandItem
-                key={command.id}
-                onSelect={() => {
-                  if (onExecuteCommand) {
-                    onExecuteCommand(command.id);
-                  } else {
-                    command.action();
-                    onClose();
-                  }
-                }}
-                className="hover:bg-[#2A2A2A] cursor-pointer"
-              >
-                <div className="mr-2 text-[#8E9196]">{command.icon}</div>
-                <span className="text-white">{command.label}</span>
-                <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          
-          <CommandGroup heading="Document Structure" className="text-[#8E9196]">
-            {commands.filter(cmd => 
-              cmd.id.startsWith('heading') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((command) => (
-              <CommandItem
-                key={command.id}
-                onSelect={() => {
-                  command.action();
-                  onClose();
-                }}
-                className="hover:bg-[#2A2A2A] cursor-pointer"
-              >
-                <div className="mr-2 text-[#8E9196]">{command.icon}</div>
-                <span className="text-white">{command.label}</span>
-                <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          
-          <CommandGroup heading="Layout" className="text-[#8E9196]">
-            {commands.filter(cmd => 
-              cmd.id.startsWith('layout') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((command) => (
-              <CommandItem
-                key={command.id}
-                onSelect={() => {
-                  command.action();
-                  onClose();
-                }}
-                className="hover:bg-[#2A2A2A] cursor-pointer"
-              >
-                <div className="mr-2 text-[#8E9196]">{command.icon}</div>
-                <span className="text-white">{command.label}</span>
-                <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-          
-          <CommandGroup heading="AI" className="text-[#8E9196]">
-            {commands.filter(cmd => 
-              cmd.id.startsWith('ai') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
-            ).map((command) => (
-              <CommandItem
-                key={command.id}
-                onSelect={() => {
-                  command.action();
-                  onClose();
-                }}
-                className="hover:bg-[#2A2A2A] cursor-pointer"
-              >
-                <div className="mr-2 text-[#8E9196]">{command.icon}</div>
-                <span className="text-white">{command.label}</span>
-                <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        </CommandList>
-      </Command>
+      <div className="p-1 text-xs font-medium text-[#8E9196] border-b border-[#333333]">
+        {filterValue ? `Search: ${filterValue}` : 'Commands'}
+      </div>
+      
+      <div className="py-1">
+        {filteredCommands.length === 0 ? (
+          <div className="px-3 py-2 text-sm text-[#8E9196]">
+            No commands found
+          </div>
+        ) : (
+          filteredCommands.map((command) => (
+            <button
+              key={command.id}
+              className="flex items-center w-full px-3 py-2 text-sm text-white hover:bg-[#2A2A2A] text-left"
+              onClick={() => onSelect(command.id)}
+            >
+              <span className="mr-2 text-[#8E9196]">{command.icon}</span>
+              <span>{command.label}</span>
+              <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   );
 };
 
-export const getDefaultCommands = (
-  onFormatText: (format: string) => void, 
-  onSendPrompt: (prompt: string) => void
-): CommandOption[] => [
+export const COMMANDS: CommandOption[] = [
   // Basic formatting
   {
     id: 'format.bold',
-    label: 'Bold',
     icon: <Bold size={16} />,
-    description: 'Make text bold',
-    action: () => onFormatText('bold')
+    label: 'Bold',
+    description: 'Ctrl+B',
+    action: () => {} // Placeholder, will be set in the parent component
   },
   {
     id: 'format.italic',
-    label: 'Italic',
     icon: <Italic size={16} />,
-    description: 'Make text italic',
-    action: () => onFormatText('italic')
+    label: 'Italic',
+    description: 'Ctrl+I',
+    action: () => {}
   },
   {
     id: 'format.underline',
-    label: 'Underline',
     icon: <Underline size={16} />,
-    description: 'Underline text',
-    action: () => onFormatText('underline')
+    label: 'Underline',
+    description: 'Ctrl+U',
+    action: () => {}
   },
   {
     id: 'format.bullet',
-    label: 'Bullet List',
     icon: <List size={16} />,
-    description: 'Create bullet list',
-    action: () => onFormatText('bullet')
+    label: 'Bullet List',
+    description: '- list',
+    action: () => {}
   },
   {
     id: 'format.number',
-    label: 'Numbered List',
     icon: <ListOrdered size={16} />,
-    description: 'Create numbered list',
-    action: () => onFormatText('number')
+    label: 'Numbered List',
+    description: '1. list',
+    action: () => {}
   },
   {
     id: 'format.link',
-    label: 'Link',
     icon: <Link size={16} />,
-    description: 'Insert link',
-    action: () => onFormatText('link')
+    label: 'Insert Link',
+    description: '[text](url)',
+    action: () => {}
   },
   {
     id: 'format.image',
-    label: 'Image',
     icon: <Image size={16} />,
-    description: 'Insert image',
-    action: () => onFormatText('image')
+    label: 'Insert Image',
+    description: '![alt](url)',
+    action: () => {}
   },
   {
     id: 'format.code',
-    label: 'Code',
     icon: <Code size={16} />,
-    description: 'Format as code',
-    action: () => onFormatText('code')
+    label: 'Code',
+    description: '`code`',
+    action: () => {}
   },
-  
-  // Headings (new)
+  // Headings
   {
-    id: 'heading.h1',
-    label: 'Set as heading 1',
+    id: 'format.h1',
     icon: <Heading1 size={16} />,
-    description: 'H1',
-    action: () => onFormatText('h1')
+    label: 'Heading 1',
+    description: '# Heading',
+    action: () => {}
   },
   {
-    id: 'heading.h2',
-    label: 'Set as heading 2',
+    id: 'format.h2',
     icon: <Heading2 size={16} />,
-    description: 'H2',
-    action: () => onFormatText('h2')
+    label: 'Heading 2',
+    description: '## Heading',
+    action: () => {}
   },
   {
-    id: 'heading.h3',
-    label: 'Set as heading 3',
+    id: 'format.h3',
     icon: <Heading3 size={16} />,
-    description: 'H3',
-    action: () => onFormatText('h3')
+    label: 'Heading 3',
+    description: '### Heading',
+    action: () => {}
   },
-  {
-    id: 'heading.h4',
-    label: 'Set as heading 4',
-    icon: <Heading4 size={16} />,
-    description: 'H4',
-    action: () => onFormatText('h4')
-  },
-  {
-    id: 'heading.h5',
-    label: 'Set as heading 5',
-    icon: <Heading5 size={16} />,
-    description: 'H5',
-    action: () => onFormatText('h5')
-  },
-  {
-    id: 'heading.h6',
-    label: 'Set as heading 6',
-    icon: <Heading6 size={16} />,
-    description: 'H6',
-    action: () => onFormatText('h6')
-  },
-  
-  // Layout options (new)
-  {
-    id: 'layout.splitDown',
-    label: 'Split down',
-    icon: <ArrowDown size={16} />,
-    description: 'Split editor downward',
-    action: () => console.log('Split down')  // Placeholder
-  },
-  {
-    id: 'layout.splitRight',
-    label: 'Split right',
-    icon: <ArrowRight size={16} />,
-    description: 'Split editor to the right',
-    action: () => console.log('Split right')  // Placeholder
-  },
-  {
-    id: 'layout.debug',
-    label: 'Show debug info',
-    icon: <Bug size={16} />,
-    description: 'Display debug information',
-    action: () => console.log('Show debug info')  // Placeholder
-  },
-  
-  // AI commands
+  // AI
   {
     id: 'ai.send',
-    label: 'Send to ChatGPT',
     icon: <Send size={16} />,
-    description: 'Send current line to ChatGPT',
-    action: () => onSendPrompt('current')
+    label: 'Send to AI',
+    description: 'Get AI response',
+    action: () => {}
   },
   {
     id: 'ai.chat',
-    label: 'Chat with AI',
     icon: <MessageCircle size={16} />,
-    description: 'Start AI conversation',
-    action: () => onSendPrompt('chat')
+    label: 'Chat with AI',
+    description: 'Start conversation',
+    action: () => {}
   }
 ];
 

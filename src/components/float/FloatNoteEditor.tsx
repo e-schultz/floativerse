@@ -11,8 +11,14 @@ import { toast } from '@/hooks/use-toast';
 import NoteHeader from './note-editor/NoteHeader';
 import TagInput from './note-editor/TagInput';
 import EditorToolbar from './note-editor/EditorToolbar';
-import CommandMenu, { getDefaultCommands } from './note-editor/CommandMenu';
-import { checkForSlashCommand, processAIPrompt, insertAIResponse, getCursorCoordinates } from '@/utils/textFormatting';
+import CommandMenu, { COMMANDS } from './note-editor/CommandMenu';
+import { 
+  checkForSlashCommand, 
+  processAIPrompt, 
+  insertAIResponse, 
+  getCursorCoordinates,
+  formatTextInTextarea 
+} from '@/utils/textFormatting';
 
 interface FloatNoteEditorProps {
   noteId?: string;
@@ -23,10 +29,13 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const { id } = useParams();
   const effectiveNoteId = noteId || id;
   
+  // Command menu state
   const [showCommandMenu, setShowCommandMenu] = useState(false);
-  const [slashCommand, setSlashCommand] = useState('');
+  const [commandFilter, setCommandFilter] = useState('');
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  
+  // AI processing state
   const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   
   const { 
     title, 
@@ -42,13 +51,12 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     handleDeleteNote,
     handleAddTag,
     handleRemoveTag,
-    handleFormatText,
     isPending,
     isDeleting
   } = useNoteEditor({ noteId: effectiveNoteId });
   
-  // Handle text input and check for slash commands
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  // Check for slash commands when content changes
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
     setContent(newContent);
     
@@ -56,66 +64,51 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     
     const cursorPosition = e.target.selectionStart;
     const lineStart = newContent.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const lineText = newContent.substring(lineStart, cursorPosition);
+    const currentLineText = newContent.substring(lineStart, cursorPosition);
     
-    // Check for slash command at the end of the line
-    const command = checkForSlashCommand(lineText);
-    console.log('Command detected:', command); // Debug log
+    const slashCommand = checkForSlashCommand(currentLineText);
     
-    if (command) {
-      // Calculate cursor position for showing the command menu
-      const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
-      console.log('Coords:', coords); // Debug log
-      
-      if (coords) {
-        setMenuPosition(coords);
-        setSlashCommand(command.replace('/', ''));
-        setShowCommandMenu(true);
-      }
+    if (slashCommand) {
+      const position = getCursorCoordinates(textareaRef.current);
+      setMenuPosition(position);
+      setCommandFilter(slashCommand);
+      setShowCommandMenu(true);
+      console.log('Slash command detected:', slashCommand, 'Position:', position);
     } else {
       setShowCommandMenu(false);
-      setMenuPosition(null);
     }
   };
   
-  // Also check for commands when cursor position changes (clicking around)
-  const handleSelectionChange = () => {
+  // Handle keyboard events in the textarea
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Close command menu on escape
+    if (e.key === 'Escape' && showCommandMenu) {
+      setShowCommandMenu(false);
+      e.preventDefault();
+    }
+    
+    // Close menu on enter if it's open
+    if (e.key === 'Enter' && showCommandMenu) {
+      setShowCommandMenu(false);
+      e.preventDefault();
+    }
+  };
+  
+  // Handle clicking in the textarea to close the command menu
+  const handleTextareaClick = () => {
+    if (showCommandMenu) {
+      setShowCommandMenu(false);
+    }
+  };
+  
+  // Format text based on command
+  const handleFormatText = (format: string) => {
     if (!textareaRef.current) return;
-    
-    const cursorPosition = textareaRef.current.selectionStart;
-    const lineStart = content.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const lineText = content.substring(lineStart, cursorPosition);
-    
-    const command = checkForSlashCommand(lineText);
-    
-    if (command) {
-      const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
-      if (coords) {
-        setMenuPosition(coords);
-        setSlashCommand(command.replace('/', ''));
-        setShowCommandMenu(true);
-      }
-    } else {
-      setShowCommandMenu(false);
-      setMenuPosition(null);
-    }
+    const newContent = formatTextInTextarea(textareaRef.current, format);
+    setContent(newContent);
   };
   
-  // Add event listener for selection changes
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    
-    textarea.addEventListener('click', handleSelectionChange);
-    textarea.addEventListener('keyup', handleSelectionChange);
-    
-    return () => {
-      textarea.removeEventListener('click', handleSelectionChange);
-      textarea.removeEventListener('keyup', handleSelectionChange);
-    };
-  }, [textareaRef.current, content]);
-  
-  // Handle sending prompts to AI
+  // Handle AI prompt
   const handleSendPrompt = async (type: string) => {
     if (!textareaRef.current) return;
     
@@ -136,8 +129,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setIsProcessingAI(true);
     
     try {
-      // This is a mock implementation - in a real app you would call an AI API
-      // For demo purposes we'll just wait and return a fake response
+      // Mock AI response for demo
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const mockResponse = `This is a simulated AI response to: "${prompt}"
@@ -163,19 +155,22 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
     }
   };
   
-  // Handle closing the command menu
-  const handleCloseCommandMenu = () => {
-    setShowCommandMenu(false);
-    setSlashCommand('');
-    setMenuPosition(null);
-  };
-  
-  const executeCommand = (commandId: string) => {
-    const command = commands.find(cmd => cmd.id === commandId);
-    if (command) {
-      command.action();
-      handleCloseCommandMenu();
+  // Handle command selection from the menu
+  const handleCommandSelect = (commandId: string) => {
+    console.log('Command selected:', commandId);
+    
+    const command = COMMANDS.find(cmd => cmd.id === commandId);
+    if (!command) return;
+    
+    if (commandId.startsWith('format.')) {
+      const format = commandId.replace('format.', '');
+      handleFormatText(format);
+    } else if (commandId.startsWith('ai.')) {
+      const aiAction = commandId.replace('ai.', '');
+      handleSendPrompt(aiAction);
     }
+    
+    setShowCommandMenu(false);
   };
   
   if (isLoading && effectiveNoteId) {
@@ -185,8 +180,6 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
       </div>
     );
   }
-  
-  const commands = getDefaultCommands(handleFormatText, handleSendPrompt);
   
   return (
     <motion.div 
@@ -224,9 +217,21 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
             ref={textareaRef}
             placeholder="Start writing your thoughts... (Type / for commands)"
             value={content}
-            onChange={handleTextChange}
+            onChange={handleContentChange}
+            onKeyDown={handleKeyDown}
+            onClick={handleTextareaClick}
             className="min-h-[300px] border-none px-0 focus-visible:ring-0 text-float-text"
           />
+          
+          {showCommandMenu && (
+            <CommandMenu
+              isOpen={showCommandMenu}
+              position={menuPosition}
+              onClose={() => setShowCommandMenu(false)}
+              onSelect={handleCommandSelect}
+              filterValue={commandFilter}
+            />
+          )}
           
           {isProcessingAI && (
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
@@ -235,17 +240,6 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
                 <p className="text-sm text-muted-foreground">Processing AI request...</p>
               </div>
             </div>
-          )}
-          
-          {showCommandMenu && menuPosition && (
-            <CommandMenu 
-              isOpen={showCommandMenu}
-              onClose={handleCloseCommandMenu}
-              commands={commands}
-              searchTerm={slashCommand}
-              position={menuPosition}
-              onExecuteCommand={executeCommand}
-            />
           )}
         </div>
       </div>

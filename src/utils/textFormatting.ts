@@ -136,74 +136,72 @@ export const getCurrentLine = (
 };
 
 /**
- * Get coordinates of the cursor in the textarea
+ * Simple and reliable function to get cursor coordinates in a textarea
  */
 export const getCursorCoordinates = (
-  textareaElement: HTMLTextAreaElement,
-  cursorPosition: number
-): { top: number; left: number } | null => {
-  try {
-    // Create a hidden div to measure text dimensions
-    const div = document.createElement('div');
-    const span = document.createElement('span');
-    
-    // Copy styles from textarea to the div
-    const styles = window.getComputedStyle(textareaElement);
-    const textBeforeCursor = textareaElement.value.substring(0, cursorPosition);
-    
-    // Apply the same styles to the div as the textarea
-    div.style.position = 'absolute';
-    div.style.top = '0';
-    div.style.left = '-9999px';
-    div.style.width = styles.width;
-    div.style.height = 'auto';
-    div.style.whiteSpace = 'pre-wrap';
-    div.style.wordBreak = 'break-word';
-    div.style.fontSize = styles.fontSize;
-    div.style.fontFamily = styles.fontFamily;
-    div.style.lineHeight = styles.lineHeight;
-    div.style.padding = styles.padding;
-    div.style.border = styles.border;
-    div.style.boxSizing = styles.boxSizing;
-    
-    // Add content up to cursor position
-    div.textContent = textBeforeCursor;
-    // Add a span at cursor position
-    span.textContent = '';
-    div.appendChild(span);
-    
-    document.body.appendChild(div);
-    
-    // Get coordinates
-    const spanRect = span.getBoundingClientRect();
-    const textareaRect = textareaElement.getBoundingClientRect();
-    
-    // Clean up
-    document.body.removeChild(div);
-    
-    return {
-      top: spanRect.top - textareaRect.top + 20, // Add offset to position below cursor
-      left: spanRect.left - textareaRect.left
-    };
-  } catch (error) {
-    console.error('Error calculating cursor coordinates:', error);
-    // Fallback to a basic position if calculation fails
-    const textareaRect = textareaElement.getBoundingClientRect();
-    return {
-      top: 50,  // Default position
-      left: 50
-    };
-  }
+  textarea: HTMLTextAreaElement
+): { top: number; left: number } => {
+  // Create a mirror div to measure
+  const mirror = document.createElement('div');
+  
+  // Copy styles from textarea
+  const style = window.getComputedStyle(textarea);
+  
+  // Apply styles to mirror element
+  mirror.style.width = style.width;
+  mirror.style.padding = style.padding;
+  mirror.style.fontFamily = style.fontFamily;
+  mirror.style.fontSize = style.fontSize;
+  mirror.style.lineHeight = style.lineHeight;
+  mirror.style.whiteSpace = 'pre-wrap';
+  mirror.style.wordBreak = 'break-word';
+  mirror.style.position = 'absolute';
+  mirror.style.top = '0';
+  mirror.style.left = '0';
+  mirror.style.visibility = 'hidden';
+  
+  // Get text before cursor and replace spaces at the end with a visible character
+  const text = textarea.value.substring(0, textarea.selectionStart);
+  
+  // Create content with a span at cursor position
+  mirror.textContent = text;
+  const marker = document.createElement('span');
+  marker.textContent = '|';
+  mirror.appendChild(marker);
+  
+  // Add mirror to document
+  document.body.appendChild(mirror);
+  
+  // Get position
+  const markerRect = marker.getBoundingClientRect();
+  const textareaRect = textarea.getBoundingClientRect();
+  
+  // Clean up
+  document.body.removeChild(mirror);
+  
+  // Return relative coordinates
+  return {
+    left: markerRect.left - textareaRect.left + textarea.scrollLeft,
+    top: markerRect.top - textareaRect.top + textarea.scrollTop + markerRect.height
+  };
 };
 
 /**
- * Check if text contains a slash command
+ * Check for slash command at cursor position
  */
 export const checkForSlashCommand = (text: string): string | null => {
-  // More robust regex to detect slash commands at the end of the text
-  const match = text.match(/\/\w*$/);
-  console.log('Checking for slash command in:', text, 'Result:', match ? match[0] : null);
-  return match ? match[0] : null;
+  // Simple check for a slash at the end of text or preceded by space/newline
+  if (text.endsWith('/')) {
+    return '/';
+  }
+  
+  // Match /command
+  const match = text.match(/(?:^|\s)\/(\w*)$/);
+  if (match) {
+    return `/${match[1]}`;
+  }
+  
+  return null;
 };
 
 /**
@@ -250,3 +248,4 @@ export const insertAIResponse = (
   
   return newText;
 };
+
