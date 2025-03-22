@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Clock, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -100,11 +100,15 @@ const FloatContent = ({ sidebarOpen }: FloatContentProps) => {
             transition={{ delay: 0.4 }}
             className="flex gap-4 mt-6"
           >
-            <Button className="float-button float-button-primary" as={Link} to="/note/editor">
-              <Plus className="mr-2 h-4 w-4" /> Create New Note
+            <Button className="float-button float-button-primary" asChild>
+              <Link to="/note/editor">
+                <Plus className="mr-2 h-4 w-4" /> Create New Note
+              </Link>
             </Button>
-            <Button className="float-button" variant="outline">
-              <Search className="mr-2 h-4 w-4" /> Explore Notes
+            <Button className="float-button" variant="outline" asChild>
+              <Link to="/explore-notes">
+                <Search className="mr-2 h-4 w-4" /> Explore Notes
+              </Link>
             </Button>
           </motion.div>
         </header>
@@ -115,7 +119,15 @@ const FloatContent = ({ sidebarOpen }: FloatContentProps) => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
           >
-            <h2 className="text-2xl font-semibold mb-4">Recent Notes</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Recent Notes</h2>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/recent-notes" className="flex items-center text-float-accent">
+                  <Clock className="mr-1 h-4 w-4" />
+                  View All
+                </Link>
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {notesData.map((note, index) => (
                 <motion.div
@@ -153,7 +165,15 @@ const FloatContent = ({ sidebarOpen }: FloatContentProps) => {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
           >
-            <h2 className="text-2xl font-semibold mb-4">Concept Connections</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-semibold">Concept Connections</h2>
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/explore-notes" className="flex items-center text-float-accent">
+                  <BookOpen className="mr-1 h-4 w-4" />
+                  Explore
+                </Link>
+              </Button>
+            </div>
             <div className="float-card p-6 flex flex-col items-center justify-center">
               <div className="w-full h-64 bg-gradient-to-br from-float-primary/5 to-float-accent/5 rounded-lg flex items-center justify-center mb-4">
                 <p className="text-float-text-secondary text-center px-6">

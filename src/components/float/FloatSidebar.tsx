@@ -1,9 +1,9 @@
 
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Search, Plus, Star, Clock, Tag, Settings, Menu, X } from 'lucide-react';
+import { Search, Plus, Star, Clock, BookOpen, Tag, Settings, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -15,6 +15,7 @@ interface FloatSidebarProps {
 const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const sidebarVariants = {
     open: { 
@@ -48,7 +49,8 @@ const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
 
   const menuItems = [
     { icon: Star, label: 'Starred', path: '#starred' },
-    { icon: Clock, label: 'Recent', path: '#recent' },
+    { icon: Clock, label: 'Recent Notes', path: '/recent-notes' },
+    { icon: BookOpen, label: 'Explore Notes', path: '/explore-notes' },
     { icon: Tag, label: 'Tags', path: '#tags' },
     { icon: Settings, label: 'Settings', path: '#settings' },
   ];
@@ -124,20 +126,38 @@ const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
           
           <nav className="flex-1 space-y-1 overflow-auto">
             {menuItems.map((item) => (
-              <motion.a
-                key={item.label}
-                href={item.path}
-                variants={itemVariants}
-                className={cn(
-                  "flex items-center px-3 py-2 text-sm rounded-md hover:bg-float-accent/10 transition-colors",
-                  !isOpen && !isMobile && "justify-center"
+              <motion.div key={item.label} variants={itemVariants}>
+                {item.path.startsWith('#') ? (
+                  <a
+                    href={item.path}
+                    className={cn(
+                      "flex items-center px-3 py-2 text-sm rounded-md hover:bg-float-accent/10 transition-colors",
+                      !isOpen && !isMobile && "justify-center"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", isOpen || isMobile ? "mr-3" : "")} />
+                    <span className={cn(!isOpen && !isMobile && "hidden")}>
+                      {item.label}
+                    </span>
+                  </a>
+                ) : (
+                  <Link
+                    to={item.path}
+                    className={cn(
+                      "flex items-center px-3 py-2 text-sm rounded-md transition-colors",
+                      location.pathname === item.path 
+                        ? "bg-float-accent/10 text-float-accent font-medium" 
+                        : "hover:bg-float-accent/10",
+                      !isOpen && !isMobile && "justify-center"
+                    )}
+                  >
+                    <item.icon className={cn("h-5 w-5", isOpen || isMobile ? "mr-3" : "")} />
+                    <span className={cn(!isOpen && !isMobile && "hidden")}>
+                      {item.label}
+                    </span>
+                  </Link>
                 )}
-              >
-                <item.icon className={cn("h-5 w-5", isOpen || isMobile ? "mr-3" : "")} />
-                <span className={cn(!isOpen && !isMobile && "hidden")}>
-                  {item.label}
-                </span>
-              </motion.a>
+              </motion.div>
             ))}
           </nav>
           
