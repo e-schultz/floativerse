@@ -1,28 +1,21 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  Bold, 
-  Italic, 
-  Underline, 
-  List, 
-  ListOrdered, 
-  Link, 
-  Image,
-  MessageCircle,
-  Code,
-  Send,
-  Heading1,
-  Heading2,
-  Heading3,
-} from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
 
-export type CommandOption = {
-  id: string;
-  icon: React.ReactNode;
-  label: string;
-  description: string;
-  action: () => void;
-};
+// Command definitions
+export const COMMANDS = [
+  { id: 'format.bold', label: 'Bold text', description: 'Format selected text as bold' },
+  { id: 'format.italic', label: 'Italic text', description: 'Format selected text as italic' },
+  { id: 'format.underline', label: 'Underline text', description: 'Format selected text as underlined' },
+  { id: 'format.bullet', label: 'Bullet list', description: 'Create or remove a bullet list item' },
+  { id: 'format.number', label: 'Numbered list', description: 'Create or remove a numbered list item' },
+  { id: 'format.h1', label: 'Heading 1', description: 'Add or remove a level 1 heading' },
+  { id: 'format.h2', label: 'Heading 2', description: 'Add or remove a level 2 heading' },
+  { id: 'format.h3', label: 'Heading 3', description: 'Add or remove a level 3 heading' },
+  { id: 'format.code', label: 'Code', description: 'Format text as inline code' },
+  { id: 'format.link', label: 'Link', description: 'Insert a hyperlink' },
+  { id: 'ai.send', label: 'Send to AI', description: 'Send the current line to AI' },
+  { id: 'ai.chat', label: 'Chat with AI', description: 'Use the entire note as context for an AI chat' },
+];
 
 interface CommandMenuProps {
   isOpen: boolean;
@@ -30,27 +23,33 @@ interface CommandMenuProps {
   onClose: () => void;
   onSelect: (commandId: string) => void;
   filterValue: string;
+  selectedIndex?: number;
 }
 
-const CommandMenu: React.FC<CommandMenuProps> = ({
-  isOpen,
-  position,
-  onClose,
+const CommandMenu: React.FC<CommandMenuProps> = ({ 
+  isOpen, 
+  position, 
+  onClose, 
   onSelect,
-  filterValue
+  filterValue,
+  selectedIndex = 0
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [filteredCommands, setFilteredCommands] = useState(COMMANDS);
   
-  const filteredCommands = COMMANDS.filter(cmd => 
-    !filterValue || cmd.label.toLowerCase().includes(filterValue.toLowerCase().replace('/', ''))
-  );
-  
-  // Reset selectedIndex when filter changes
+  // Filter commands based on input
   useEffect(() => {
-    setSelectedIndex(0);
+    if (!filterValue || filterValue === '/') {
+      setFilteredCommands(COMMANDS);
+    } else {
+      const filtered = COMMANDS.filter(command => 
+        command.label.toLowerCase().includes(filterValue.toLowerCase().replace('/', ''))
+      );
+      setFilteredCommands(filtered);
+    }
   }, [filterValue]);
   
+  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
@@ -58,178 +57,73 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
       }
     };
     
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (!isOpen) return;
-      
-      switch (event.key) {
-        case 'Escape':
-          onClose();
-          event.preventDefault();
-          break;
-        case 'ArrowDown':
-          setSelectedIndex(prev => (prev + 1) % filteredCommands.length);
-          event.preventDefault();
-          break;
-        case 'ArrowUp':
-          setSelectedIndex(prev => (prev - 1 + filteredCommands.length) % filteredCommands.length);
-          event.preventDefault();
-          break;
-        case 'Enter':
-          if (filteredCommands.length > 0) {
-            onSelect(filteredCommands[selectedIndex].id);
-            event.preventDefault();
-          }
-          break;
-      }
-    };
-    
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
     }
     
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose, onSelect, filteredCommands, selectedIndex]);
+  }, [isOpen, onClose]);
   
-  if (!isOpen) {
-    return null;
-  }
+  // Scroll selected item into view
+  useEffect(() => {
+    if (isOpen && menuRef.current) {
+      const selectedItem = menuRef.current.querySelector(`[data-index="${selectedIndex}"]`);
+      if (selectedItem) {
+        selectedItem.scrollIntoView({ block: 'nearest' });
+      }
+    }
+  }, [selectedIndex, isOpen]);
+  
+  if (!isOpen) return null;
   
   return (
-    <div
+    <div 
       ref={menuRef}
-      className="absolute z-50 bg-[#222222] rounded-md shadow-lg border border-[#333333] w-64 max-h-80 overflow-y-auto overflow-x-hidden"
-      style={{
-        top: `${position.top}px`,
-        left: `${position.left}px`,
+      className="absolute z-10 bg-popover border border-border rounded-md shadow-md overflow-hidden w-64 max-h-72"
+      style={{ 
+        top: `${position.top}px`, 
+        left: `${position.left}px` 
       }}
     >
-      <div className="p-1 text-xs font-medium text-[#8E9196] border-b border-[#333333]">
-        {filterValue ? `Search: ${filterValue}` : 'Commands'}
-      </div>
-      
-      <div className="py-1">
+      <div className="p-1 overflow-y-auto">
         {filteredCommands.length === 0 ? (
-          <div className="px-3 py-2 text-sm text-[#8E9196]">
-            No commands found
+          <div className="p-2 text-sm text-muted-foreground">
+            No commands match '{filterValue}'
           </div>
         ) : (
-          filteredCommands.map((command, index) => (
-            <button
-              key={command.id}
-              className={`flex items-center w-full px-3 py-2 text-sm text-white text-left ${index === selectedIndex ? 'bg-[#2A2A2A]' : 'hover:bg-[#2A2A2A]'}`}
-              onClick={() => onSelect(command.id)}
-              onMouseEnter={() => setSelectedIndex(index)}
-            >
-              <span className="mr-2 text-[#8E9196]">{command.icon}</span>
-              <span>{command.label}</span>
-              <span className="ml-auto text-xs text-[#8E9196]">{command.description}</span>
-            </button>
-          ))
+          <div className="space-y-1">
+            {filteredCommands.map((command, index) => (
+              <div
+                key={command.id}
+                className={`flex flex-col p-2 rounded-sm cursor-pointer text-sm transition-colors ${
+                  index === selectedIndex ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
+                }`}
+                onClick={() => onSelect(command.id)}
+                data-index={index}
+              >
+                <div className="font-medium">{command.label}</div>
+                <div className={`text-xs ${
+                  index === selectedIndex ? 'text-primary-foreground/80' : 'text-muted-foreground'
+                }`}>
+                  {command.description}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
+      </div>
+      <div className="border-t border-border p-2 bg-muted/50">
+        <div className="flex space-x-4 text-xs text-muted-foreground">
+          <span>↑↓ Navigate</span>
+          <span>↵ Select</span>
+          <span>Tab Autofill</span>
+          <span>Esc Close</span>
+        </div>
       </div>
     </div>
   );
 };
-
-export const COMMANDS: CommandOption[] = [
-  // Basic formatting
-  {
-    id: 'format.bold',
-    icon: <Bold size={16} />,
-    label: 'Bold',
-    description: 'Ctrl+B',
-    action: () => {} // Placeholder, will be set in the parent component
-  },
-  {
-    id: 'format.italic',
-    icon: <Italic size={16} />,
-    label: 'Italic',
-    description: 'Ctrl+I',
-    action: () => {}
-  },
-  {
-    id: 'format.underline',
-    icon: <Underline size={16} />,
-    label: 'Underline',
-    description: 'Ctrl+U',
-    action: () => {}
-  },
-  {
-    id: 'format.bullet',
-    icon: <List size={16} />,
-    label: 'Bullet List',
-    description: '- list',
-    action: () => {}
-  },
-  {
-    id: 'format.number',
-    icon: <ListOrdered size={16} />,
-    label: 'Numbered List',
-    description: '1. list',
-    action: () => {}
-  },
-  {
-    id: 'format.link',
-    icon: <Link size={16} />,
-    label: 'Insert Link',
-    description: '[text](url)',
-    action: () => {}
-  },
-  {
-    id: 'format.image',
-    icon: <Image size={16} />,
-    label: 'Insert Image',
-    description: '![alt](url)',
-    action: () => {}
-  },
-  {
-    id: 'format.code',
-    icon: <Code size={16} />,
-    label: 'Code',
-    description: '`code`',
-    action: () => {}
-  },
-  // Headings
-  {
-    id: 'format.h1',
-    icon: <Heading1 size={16} />,
-    label: 'Heading 1',
-    description: '# Heading',
-    action: () => {}
-  },
-  {
-    id: 'format.h2',
-    icon: <Heading2 size={16} />,
-    label: 'Heading 2',
-    description: '## Heading',
-    action: () => {}
-  },
-  {
-    id: 'format.h3',
-    icon: <Heading3 size={16} />,
-    label: 'Heading 3',
-    description: '### Heading',
-    action: () => {}
-  },
-  // AI
-  {
-    id: 'ai.send',
-    icon: <Send size={16} />,
-    label: 'Send to AI',
-    description: 'Get AI response',
-    action: () => {}
-  },
-  {
-    id: 'ai.chat',
-    icon: <MessageCircle size={16} />,
-    label: 'Chat with AI',
-    description: 'Start conversation',
-    action: () => {}
-  }
-];
 
 export default CommandMenu;

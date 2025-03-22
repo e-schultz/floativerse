@@ -18,7 +18,8 @@ import {
   insertAIResponse, 
   getCursorCoordinates,
   formatTextInTextarea,
-  handleTabIndent 
+  handleTabIndent,
+  extractContextFromHeaders
 } from '@/utils/textFormatting';
 import { generateAIResponse } from '@/services/aiService';
 
@@ -35,8 +36,10 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const [commandFilter, setCommandFilter] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const [commandWithText, setCommandWithText] = useState<string | null>(null);
+  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [isUsingHeaderContext, setIsUsingHeaderContext] = useState(false);
   
   const { 
     title, 
@@ -74,6 +77,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       setCommandFilter(slashCommandInfo.command);
       setCommandWithText(slashCommandInfo.fullText);
       setShowCommandMenu(true);
+      setSelectedCommandIndex(0);
     } else {
       setShowCommandMenu(false);
     }
@@ -114,8 +118,41 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
         }
       }
       
-      if (['ArrowUp', 'ArrowDown', 'Enter'].includes(e.key)) {
+      if (e.key === 'ArrowUp') {
         e.preventDefault();
+        
+        const matchingCommands = COMMANDS.filter(cmd => 
+          cmd.label.toLowerCase().includes(commandFilter.toLowerCase().replace('/', ''))
+        );
+        
+        setSelectedCommandIndex(prev => 
+          prev > 0 ? prev - 1 : matchingCommands.length - 1
+        );
+      }
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        
+        const matchingCommands = COMMANDS.filter(cmd => 
+          cmd.label.toLowerCase().includes(commandFilter.toLowerCase().replace('/', ''))
+        );
+        
+        setSelectedCommandIndex(prev => 
+          prev < matchingCommands.length - 1 ? prev + 1 : 0
+        );
+      }
+      
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        const matchingCommands = COMMANDS.filter(cmd => 
+          cmd.label.toLowerCase().includes(commandFilter.toLowerCase().replace('/', ''))
+        );
+        
+        if (matchingCommands.length > 0) {
+          const actualIndex = Math.min(selectedCommandIndex, matchingCommands.length - 1);
+          handleCommandSelect(matchingCommands[actualIndex].id);
+        }
       }
     }
   };
@@ -141,6 +178,11 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     let promptInfo;
     if (commandWithText && (commandWithText.startsWith('/send') || commandWithText.startsWith('/chat'))) {
       promptInfo = processAIPrompt(textareaRef.current, type, commandWithText);
+      
+      // Check if the prompt references headers for context
+      if (promptInfo && promptInfo.prompt.match(/h[1-6]|header|section|title|document/i)) {
+        setIsUsingHeaderContext(true);
+      }
     } else {
       promptInfo = processAIPrompt(textareaRef.current, type);
     }
@@ -161,14 +203,23 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setIsProcessingAI(true);
     
     try {
+      // If we're using header context, show a toast to inform the user
+      if (isUsingHeaderContext) {
+        toast({
+          title: "Using document context",
+          description: "Adding relevant header sections to your prompt",
+        });
+      }
+      
       const response = await generateAIResponse(prompt);
       
       if (response.success) {
         const newContent = insertAIResponse(textareaRef.current, response.text, insertPosition);
         setContent(newContent);
         
-        // After inserting AI response, clear the commandWithText
+        // After inserting AI response, clear the commandWithText and reset context flag
         setCommandWithText(null);
+        setIsUsingHeaderContext(false);
         
         toast({
           title: "AI response added",
@@ -274,6 +325,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
               onClose={() => setShowCommandMenu(false)}
               onSelect={handleCommandSelect}
               filterValue={commandFilter}
+              selectedIndex={selectedCommandIndex}
             />
           )}
           
@@ -281,7 +333,11 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center">
               <div className="text-center">
                 <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">Processing AI request...</p>
+                <p className="text-sm text-muted-foreground">
+                  {isUsingHeaderContext 
+                    ? "Processing AI request with document context..." 
+                    : "Processing AI request..."}
+                </p>
               </div>
             </div>
           )}
@@ -309,3 +365,4 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
 };
 
 export default FloatNoteEditor;
+

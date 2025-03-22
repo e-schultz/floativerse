@@ -213,6 +213,102 @@ export const checkForSlashCommand = (text: string): { command: string, fullText:
 };
 
 /**
+ * Extract context based on header sections from the document
+ * @param content The entire note content
+ * @param prompt The user prompt that may reference specific headers
+ * @returns Enhanced prompt with appropriate context
+ */
+export const extractContextFromHeaders = (content: string, prompt: string): string => {
+  // Split the content into lines for processing
+  const lines = content.split('\n');
+  
+  // Parse the document structure with headers
+  const docStructure: {
+    level: number;
+    title: string;
+    content: string;
+    lineStart: number;
+    lineEnd: number;
+  }[] = [];
+  
+  let currentHeader = { level: 0, title: '', content: '', lineStart: 0, lineEnd: 0 };
+  let inSection = false;
+  
+  // Process each line to identify headers and their content
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check if the line is a Markdown header
+    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    
+    if (headerMatch) {
+      // If we were already in a section, save the previous section
+      if (inSection) {
+        currentHeader.lineEnd = i - 1;
+        currentHeader.content = lines
+          .slice(currentHeader.lineStart + 1, currentHeader.lineEnd + 1)
+          .join('\n');
+        docStructure.push({ ...currentHeader });
+      }
+      
+      // Start a new section
+      const level = headerMatch[1].length; // Number of # symbols
+      const title = headerMatch[2].trim();
+      currentHeader = {
+        level,
+        title,
+        content: '',
+        lineStart: i,
+        lineEnd: 0
+      };
+      inSection = true;
+    }
+  }
+  
+  // Add the last section if there was one
+  if (inSection) {
+    currentHeader.lineEnd = lines.length - 1;
+    currentHeader.content = lines
+      .slice(currentHeader.lineStart + 1, currentHeader.lineEnd + 1)
+      .join('\n');
+    docStructure.push({ ...currentHeader });
+  }
+  
+  // Look for context references in the prompt
+  const h1Reference = prompt.match(/h1|header|title|document/i);
+  const h2Reference = prompt.match(/h2|section|subsection/i);
+  
+  let enhancedPrompt = prompt;
+  
+  // Find the most recent h1 and h2 relative to the prompt position
+  let relevantH1 = '';
+  let relevantH2 = '';
+  
+  for (const section of docStructure) {
+    if (section.level === 1) {
+      relevantH1 = `# ${section.title}\n${section.content}`;
+    } else if (section.level === 2) {
+      relevantH2 = `## ${section.title}\n${section.content}`;
+    }
+  }
+  
+  // Construct an enhanced prompt with context
+  if (h1Reference && h2Reference) {
+    // User wants context from both h1 and h2
+    enhancedPrompt = 
+      `CONTEXT FROM H1:\n${relevantH1}\n\nCONTEXT FROM H2:\n${relevantH2}\n\nPROMPT: ${prompt}`;
+  } else if (h1Reference) {
+    // User wants context from h1
+    enhancedPrompt = `CONTEXT FROM H1:\n${relevantH1}\n\nPROMPT: ${prompt}`;
+  } else if (h2Reference) {
+    // User wants context from h2
+    enhancedPrompt = `CONTEXT FROM H2:\n${relevantH2}\n\nPROMPT: ${prompt}`;
+  }
+  
+  return enhancedPrompt;
+};
+
+/**
  * Process a ChatGPT prompt from the current line or command
  */
 export const processAIPrompt = (
@@ -236,8 +332,12 @@ export const processAIPrompt = (
         const lineEnd = textareaElement.value.indexOf('\n', cursorPosition);
         const actualLineEnd = lineEnd > -1 ? lineEnd : textareaElement.value.length;
         
+        // Check for header context references
+        const fullContent = textareaElement.value;
+        const contextEnhancedPrompt = extractContextFromHeaders(fullContent, promptText);
+        
         return {
-          prompt: promptText.trim(),
+          prompt: contextEnhancedPrompt,
           insertPosition: actualLineEnd
         };
       }
@@ -256,6 +356,11 @@ export const processAIPrompt = (
   if (promptType === 'send') {
     // Remove the /send command if present
     cleanedPrompt = text.replace(/\/send\s*/, '').trim();
+    
+    // If the prompt contains references to headers, enhance it with context
+    if (cleanedPrompt.match(/h[1-6]|header|section|title|document/i)) {
+      cleanedPrompt = extractContextFromHeaders(textareaElement.value, cleanedPrompt);
+    }
   } else if (promptType === 'chat') {
     // For chat prompt, take the entire note content for context
     cleanedPrompt = textareaElement.value.trim();
