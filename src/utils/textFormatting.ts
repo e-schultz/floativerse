@@ -191,7 +191,8 @@ export const getCursorCoordinates = (
  * Check if text contains a slash command
  */
 export const checkForSlashCommand = (text: string): string | null => {
-  const match = text.match(/\/(\w+)$/);
+  // Check if the text has a slash followed by any characters (no spaces)
+  const match = text.match(/\/(\w*)$/);
   return match ? match[0] : null;
 };
 

@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import { 
   Command,
@@ -43,7 +42,7 @@ interface CommandMenuProps {
   onClose: () => void;
   commands: CommandOption[];
   searchTerm: string;
-  position?: { top: number; left: number };
+  position?: { top: number; left: number } | null;
 }
 
 const CommandMenu: React.FC<CommandMenuProps> = ({ 
@@ -79,16 +78,15 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
     };
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !position) return null;
 
   return (
     <div 
       ref={menuRef}
       className="absolute z-50 w-72 rounded-md border bg-[#222222] shadow-lg overflow-hidden"
       style={{
-        top: position?.top || 'auto',
-        left: position?.left || 'auto',
-        display: isOpen ? 'block' : 'none'
+        top: position.top || 'auto',
+        left: position.left || 'auto',
       }}
     >
       <Command className="rounded-lg border-0">
@@ -104,7 +102,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
           <CommandGroup heading="Basic Editing" className="text-[#8E9196]">
             {commands.filter(cmd => 
               cmd.id.startsWith('format') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase().replace('/', ''))
+              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
             ).map((command) => (
               <CommandItem
                 key={command.id}
@@ -124,7 +122,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
           <CommandGroup heading="Document Structure" className="text-[#8E9196]">
             {commands.filter(cmd => 
               cmd.id.startsWith('heading') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase().replace('/', ''))
+              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
             ).map((command) => (
               <CommandItem
                 key={command.id}
@@ -144,7 +142,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
           <CommandGroup heading="Layout" className="text-[#8E9196]">
             {commands.filter(cmd => 
               cmd.id.startsWith('layout') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase().replace('/', ''))
+              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
             ).map((command) => (
               <CommandItem
                 key={command.id}
@@ -164,7 +162,7 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
           <CommandGroup heading="AI" className="text-[#8E9196]">
             {commands.filter(cmd => 
               cmd.id.startsWith('ai') && 
-              cmd.label.toLowerCase().includes(searchTerm.toLowerCase().replace('/', ''))
+              cmd.label.toLowerCase().includes(searchTerm.toLowerCase())
             ).map((command) => (
               <CommandItem
                 key={command.id}

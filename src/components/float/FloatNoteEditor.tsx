@@ -26,7 +26,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [slashCommand, setSlashCommand] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | undefined>(undefined);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   
   const { 
     title, 
@@ -62,14 +62,38 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
       if (coords) {
         setMenuPosition(coords);
+        setSlashCommand(command.replace('/', ''));
+        setShowCommandMenu(true);
       }
-      
-      setSlashCommand(command);
-      setShowCommandMenu(true);
     } else {
       setShowCommandMenu(false);
+      setMenuPosition(null);
     }
   }, [content, textareaRef]);
+  
+  // Handle text change to constantly update the command menu position
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setContent(e.target.value);
+    
+    // Immediately check for slash command
+    const cursorPosition = e.target.selectionStart;
+    const lineStart = e.target.value.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const lineText = e.target.value.substring(lineStart, cursorPosition);
+    
+    const command = checkForSlashCommand(lineText);
+    
+    if (command) {
+      const coords = getCursorCoordinates(e.target, cursorPosition);
+      if (coords) {
+        setMenuPosition(coords);
+        setSlashCommand(command.replace('/', ''));
+        setShowCommandMenu(true);
+      }
+    } else {
+      setShowCommandMenu(false);
+      setMenuPosition(null);
+    }
+  };
   
   // Handle sending prompts to AI
   const handleSendPrompt = async (type: string) => {
@@ -123,6 +147,7 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
   const handleCloseCommandMenu = () => {
     setShowCommandMenu(false);
     setSlashCommand('');
+    setMenuPosition(null);
   };
   
   if (isLoading && effectiveNoteId) {
@@ -171,7 +196,7 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
             ref={textareaRef}
             placeholder="Start writing your thoughts... (Type / for commands)"
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={handleTextChange}
             className="min-h-[300px] border-none px-0 focus-visible:ring-0 text-float-text"
           />
           
@@ -184,13 +209,15 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
             </div>
           )}
           
-          <CommandMenu 
-            isOpen={showCommandMenu} 
-            onClose={handleCloseCommandMenu}
-            commands={commands}
-            searchTerm={slashCommand}
-            position={menuPosition}
-          />
+          {showCommandMenu && menuPosition && (
+            <CommandMenu 
+              isOpen={true} 
+              onClose={handleCloseCommandMenu}
+              commands={commands}
+              searchTerm={slashCommand}
+              position={menuPosition}
+            />
+          )}
         </div>
       </div>
       
