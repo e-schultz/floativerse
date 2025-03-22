@@ -28,11 +28,13 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     tags,
     newTag,
     setNewTag,
+    textareaRef,
     isLoading,
     handleSave,
     handleDeleteNote,
     handleAddTag,
     handleRemoveTag,
+    handleFormatText,
     isPending,
     isDeleting
   } = useNoteEditor({ noteId: effectiveNoteId });
@@ -74,9 +76,10 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
           onRemoveTag={handleRemoveTag}
         />
         
-        <EditorToolbar />
+        <EditorToolbar onFormatText={handleFormatText} />
         
         <Textarea
+          ref={textareaRef}
           placeholder="Start writing your thoughts..."
           value={content}
           onChange={(e) => setContent(e.target.value)}

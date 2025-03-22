@@ -1,9 +1,10 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Note } from '@/types/notes';
 import { toast } from '@/hooks/use-toast';
 import { useNote, useCreateNote, useUpdateNote, useDeleteNote } from '@/utils/notesStorage';
+import { formatTextInTextarea } from '@/utils/textFormatting';
 
 interface UseNoteEditorProps {
   noteId?: string;
@@ -11,6 +12,7 @@ interface UseNoteEditorProps {
 
 export function useNoteEditor({ noteId }: UseNoteEditorProps) {
   const navigate = useNavigate();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -117,6 +119,13 @@ export function useNoteEditor({ noteId }: UseNoteEditorProps) {
   const handleRemoveTag = (tagToRemove: string) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
+  
+  const handleFormatText = (format: string) => {
+    const newContent = formatTextInTextarea(textareaRef.current, format);
+    if (newContent) {
+      setContent(newContent);
+    }
+  };
 
   return {
     title,
@@ -126,11 +135,13 @@ export function useNoteEditor({ noteId }: UseNoteEditorProps) {
     tags,
     newTag,
     setNewTag,
+    textareaRef,
     isLoading,
     handleSave,
     handleDeleteNote,
     handleAddTag,
     handleRemoveTag,
+    handleFormatText,
     isPending: createNote.isPending || updateNote.isPending,
     isDeleting: deleteNote.isPending
   };
