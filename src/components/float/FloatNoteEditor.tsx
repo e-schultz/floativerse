@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Save } from 'lucide-react';
@@ -12,7 +12,7 @@ import NoteHeader from './note-editor/NoteHeader';
 import TagInput from './note-editor/TagInput';
 import EditorToolbar from './note-editor/EditorToolbar';
 import CommandMenu, { getDefaultCommands } from './note-editor/CommandMenu';
-import { checkForSlashCommand, processAIPrompt, insertAIResponse } from '@/utils/textFormatting';
+import { checkForSlashCommand, processAIPrompt, insertAIResponse, getCursorCoordinates } from '@/utils/textFormatting';
 
 interface FloatNoteEditorProps {
   noteId?: string;
@@ -26,6 +26,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [slashCommand, setSlashCommand] = useState('');
   const [isProcessingAI, setIsProcessingAI] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | undefined>(undefined);
   
   const { 
     title, 
@@ -57,6 +58,12 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     const command = checkForSlashCommand(lineText);
     
     if (command) {
+      // Calculate cursor position for showing the command menu
+      const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
+      if (coords) {
+        setMenuPosition(coords);
+      }
+      
       setSlashCommand(command);
       setShowCommandMenu(true);
     } else {
@@ -176,6 +183,14 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
               </div>
             </div>
           )}
+          
+          <CommandMenu 
+            isOpen={showCommandMenu} 
+            onClose={handleCloseCommandMenu}
+            commands={commands}
+            searchTerm={slashCommand}
+            position={menuPosition}
+          />
         </div>
       </div>
       
@@ -195,13 +210,6 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
           {isPending ? 'Saving...' : <><Save className="mr-2 h-4 w-4" /> Save Note</>}
         </Button>
       </div>
-      
-      <CommandMenu 
-        isOpen={showCommandMenu} 
-        onClose={handleCloseCommandMenu}
-        commands={commands}
-        searchTerm={slashCommand}
-      />
     </motion.div>
   );
 };
