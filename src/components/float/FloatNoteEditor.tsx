@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -40,6 +39,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [isUsingHeaderContext, setIsUsingHeaderContext] = useState(false);
+  const [contextSections, setContextSections] = useState<string[]>([]);
   
   const { 
     title, 
@@ -173,15 +173,16 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     if (!textareaRef.current) return;
     
     setShowCommandMenu(false);
+    setContextSections([]);
     
-    // Check if we have a command with text after it (e.g., "/send prompt text")
     let promptInfo;
     if (commandWithText && (commandWithText.startsWith('/send') || commandWithText.startsWith('/chat'))) {
       promptInfo = processAIPrompt(textareaRef.current, type, commandWithText);
       
-      // Check if the prompt references headers for context
-      if (promptInfo && promptInfo.prompt.match(/h[1-6]|header|section|title|document/i)) {
+      const sectionReferences = analyzePromptForContextReferences(commandWithText);
+      if (sectionReferences.length > 0) {
         setIsUsingHeaderContext(true);
+        setContextSections(sectionReferences);
       }
     } else {
       promptInfo = processAIPrompt(textareaRef.current, type);
@@ -203,11 +204,12 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setIsProcessingAI(true);
     
     try {
-      // If we're using header context, show a toast to inform the user
       if (isUsingHeaderContext) {
         toast({
           title: "Using document context",
-          description: "Adding relevant header sections to your prompt",
+          description: `Adding ${contextSections.length > 0 
+            ? contextSections.join(', ') + ' sections as' 
+            : 'relevant'} context to your prompt`,
         });
       }
       
@@ -217,9 +219,9 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
         const newContent = insertAIResponse(textareaRef.current, response.text, insertPosition);
         setContent(newContent);
         
-        // After inserting AI response, clear the commandWithText and reset context flag
         setCommandWithText(null);
         setIsUsingHeaderContext(false);
+        setContextSections([]);
         
         toast({
           title: "AI response added",
@@ -242,6 +244,36 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     } finally {
       setIsProcessingAI(false);
     }
+  };
+  
+  const analyzePromptForContextReferences = (promptText: string): string[] => {
+    const references: string[] = [];
+    
+    if (promptText.match(/h1|header 1|main header|title|document/i)) {
+      references.push('H1');
+    }
+    if (promptText.match(/h2|header 2|section|sub-?section/i)) {
+      references.push('H2');
+    }
+    if (promptText.match(/h3|header 3|sub-?sub-?section/i)) {
+      references.push('H3');
+    }
+    if (promptText.match(/h4|header 4/i)) {
+      references.push('H4');
+    }
+    if (promptText.match(/h5|header 5/i)) {
+      references.push('H5');
+    }
+    if (promptText.match(/h6|header 6/i)) {
+      references.push('H6');
+    }
+    
+    const titleMatch = promptText.match(/["']([^"']+)["']/);
+    if (titleMatch) {
+      references.push(`"${titleMatch[1]}"`);
+    }
+    
+    return references;
   };
   
   const handleCommandSelect = (commandId: string) => {
@@ -335,12 +367,38 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
                 <div className="animate-spin h-6 w-6 border-2 border-primary rounded-full border-t-transparent mx-auto mb-2"></div>
                 <p className="text-sm text-muted-foreground">
                   {isUsingHeaderContext 
-                    ? "Processing AI request with document context..." 
+                    ? `Processing with ${contextSections.length > 0 
+                        ? contextSections.join(', ') + ' context' 
+                        : 'document context'}...` 
                     : "Processing AI request..."}
                 </p>
               </div>
             </div>
           )}
+        </div>
+        
+        <div className="mt-4 text-xs text-muted-foreground">
+          <p className="font-medium mb-1">Using document context with AI:</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              Structure your notes with headers using # for H1, ## for H2, etc.
+            </li>
+            <li>
+              Reference section headers in your prompts: 
+              <code className="ml-1 text-xs bg-muted px-1 py-0.5 rounded">
+                /send summarize using h1 as context
+              </code>
+            </li>
+            <li>
+              Reference specific section by title:
+              <code className="ml-1 text-xs bg-muted px-1 py-0.5 rounded">
+                /send explain "Section Title" in detail
+              </code>
+            </li>
+            <li>
+              The AI will automatically use the nearest relevant sections if no specific sections are referenced
+            </li>
+          </ul>
         </div>
       </div>
       
@@ -365,4 +423,3 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
 };
 
 export default FloatNoteEditor;
-

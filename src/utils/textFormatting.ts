@@ -274,35 +274,95 @@ export const extractContextFromHeaders = (content: string, prompt: string): stri
     docStructure.push({ ...currentHeader });
   }
   
-  // Look for context references in the prompt
-  const h1Reference = prompt.match(/h1|header|title|document/i);
-  const h2Reference = prompt.match(/h2|section|subsection/i);
+  // Define patterns for specific header level references
+  const specificHeaderPatterns = [
+    { pattern: /h1|header 1|main header|title|document/i, level: 1 },
+    { pattern: /h2|header 2|section|sub-?section/i, level: 2 },
+    { pattern: /h3|header 3|sub-?sub-?section/i, level: 3 },
+    { pattern: /h4|header 4/i, level: 4 },
+    { pattern: /h5|header 5/i, level: 5 },
+    { pattern: /h6|header 6/i, level: 6 }
+  ];
   
-  let enhancedPrompt = prompt;
+  // Check for specific title references
+  const titleReferenceMatch = prompt.match(/["']([^"']+)["']/);
+  let titleReference = titleReferenceMatch ? titleReferenceMatch[1] : null;
   
-  // Find the most recent h1 and h2 relative to the prompt position
-  let relevantH1 = '';
-  let relevantH2 = '';
+  // Collect context based on the prompt
+  const contextSections: { level: number; title: string; content: string }[] = [];
   
-  for (const section of docStructure) {
-    if (section.level === 1) {
-      relevantH1 = `# ${section.title}\n${section.content}`;
-    } else if (section.level === 2) {
-      relevantH2 = `## ${section.title}\n${section.content}`;
+  // If there's a specific title referenced, find that section
+  if (titleReference) {
+    const matchedSection = docStructure.find(section => 
+      section.title.toLowerCase().includes(titleReference!.toLowerCase())
+    );
+    
+    if (matchedSection) {
+      contextSections.push({
+        level: matchedSection.level,
+        title: matchedSection.title,
+        content: matchedSection.content
+      });
+    }
+  } else {
+    // Otherwise look for header level references
+    for (const { pattern, level } of specificHeaderPatterns) {
+      if (prompt.match(pattern)) {
+        // Find all sections of this level
+        const matchingSections = docStructure.filter(section => section.level === level);
+        
+        if (matchingSections.length > 0) {
+          // If there are multiple sections, try to find the one closest to the cursor
+          // For now, just use the last one as a simple heuristic
+          const section = matchingSections[matchingSections.length - 1];
+          contextSections.push({
+            level: section.level,
+            title: section.title,
+            content: section.content
+          });
+        }
+      }
     }
   }
   
-  // Construct an enhanced prompt with context
-  if (h1Reference && h2Reference) {
-    // User wants context from both h1 and h2
-    enhancedPrompt = 
-      `CONTEXT FROM H1:\n${relevantH1}\n\nCONTEXT FROM H2:\n${relevantH2}\n\nPROMPT: ${prompt}`;
-  } else if (h1Reference) {
-    // User wants context from h1
-    enhancedPrompt = `CONTEXT FROM H1:\n${relevantH1}\n\nPROMPT: ${prompt}`;
-  } else if (h2Reference) {
-    // User wants context from h2
-    enhancedPrompt = `CONTEXT FROM H2:\n${relevantH2}\n\nPROMPT: ${prompt}`;
+  // If no specific sections were referenced, include the closest h1 and h2 as general context
+  if (contextSections.length === 0) {
+    // Check if document contains any headers before defaulting to general context
+    if (docStructure.length > 0) {
+      // Find the most recent h1
+      const h1Section = docStructure.find(section => section.level === 1);
+      if (h1Section) {
+        contextSections.push({
+          level: h1Section.level,
+          title: h1Section.title,
+          content: h1Section.content
+        });
+      }
+      
+      // Find the most recent h2
+      const h2Sections = docStructure.filter(section => section.level === 2);
+      if (h2Sections.length > 0) {
+        const latestH2 = h2Sections[h2Sections.length - 1];
+        contextSections.push({
+          level: latestH2.level,
+          title: latestH2.title,
+          content: latestH2.content
+        });
+      }
+    }
+  }
+  
+  // Build the enhanced prompt with context
+  let enhancedPrompt = prompt;
+  
+  if (contextSections.length > 0) {
+    let contextString = 'DOCUMENT CONTEXT:\n\n';
+    
+    for (const section of contextSections) {
+      contextString += `${'#'.repeat(section.level)} ${section.title}\n${section.content}\n\n`;
+    }
+    
+    enhancedPrompt = `${contextString}PROMPT: ${prompt}`;
   }
   
   return enhancedPrompt;
@@ -493,3 +553,4 @@ export const handleTabIndent = (
     return newContent;
   }
 };
+

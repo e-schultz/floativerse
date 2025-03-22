@@ -13,7 +13,7 @@ export const COMMANDS = [
   { id: 'format.h3', label: 'Heading 3', description: 'Add or remove a level 3 heading' },
   { id: 'format.code', label: 'Code', description: 'Format text as inline code' },
   { id: 'format.link', label: 'Link', description: 'Insert a hyperlink' },
-  { id: 'ai.send', label: 'Send to AI', description: 'Send the current line to AI' },
+  { id: 'ai.send', label: 'Send to AI', description: 'Send the current line to AI (can include context references like h1, h2)' },
   { id: 'ai.chat', label: 'Chat with AI', description: 'Use the entire note as context for an AI chat' },
 ];
 
@@ -78,16 +78,19 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
   
   if (!isOpen) return null;
   
+  // Show context help for AI commands
+  const showAIContextHelp = filteredCommands.some(cmd => cmd.id.startsWith('ai.'));
+  
   return (
     <div 
       ref={menuRef}
-      className="absolute z-10 bg-popover border border-border rounded-md shadow-md overflow-hidden w-64 max-h-72"
+      className="absolute z-10 bg-popover border border-border rounded-md shadow-md overflow-hidden w-80 max-h-96"
       style={{ 
         top: `${position.top}px`, 
         left: `${position.left}px` 
       }}
     >
-      <div className="p-1 overflow-y-auto">
+      <div className="p-1 overflow-y-auto max-h-72">
         {filteredCommands.length === 0 ? (
           <div className="p-2 text-sm text-muted-foreground">
             No commands match '{filterValue}'
@@ -113,7 +116,21 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
             ))}
           </div>
         )}
+        
+        {showAIContextHelp && (
+          <div className="p-2 border-t border-border mt-1">
+            <div className="text-xs text-muted-foreground">
+              <p className="font-medium mb-1">Context references in AI prompts:</p>
+              <ul className="list-disc pl-4 space-y-0.5">
+                <li>Use <code className="bg-muted px-0.5 rounded">h1</code>, <code className="bg-muted px-0.5 rounded">h2</code>, etc. to reference document sections</li>
+                <li>Use quotes for specific titles: <code className="bg-muted px-0.5 rounded">"Section Title"</code></li>
+                <li>Example: <code className="bg-muted px-0.5 rounded">/send summarize h2 using h1 context</code></li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
+      
       <div className="border-t border-border p-2 bg-muted/50">
         <div className="flex space-x-4 text-xs text-muted-foreground">
           <span>↑↓ Navigate</span>
