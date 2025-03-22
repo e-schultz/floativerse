@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Note, formatDate, getRelativeTime } from '@/utils/notesStorage';
+import { Note } from '@/types/notes';
+import { formatDate, getRelativeTime } from '@/utils/dateFormatting';
 
 interface NotesListProps {
   notes: Note[];

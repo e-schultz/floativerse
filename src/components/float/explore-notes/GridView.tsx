@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Note } from '@/utils/notesStorage';
+import { Note } from '@/types/notes';
 import { NoteCard } from './NoteCard';
 import { LoadingState } from '../recent-notes/LoadingState';
 

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Note } from '@/utils/notesStorage';
+import { Note } from '@/types/notes';
 import { NoteCardItem } from './NoteCardItem';
 
 interface NoteCardProps {
