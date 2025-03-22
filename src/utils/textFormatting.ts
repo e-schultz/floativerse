@@ -1,4 +1,3 @@
-
 /**
  * Apply formatting to the selected text in a textarea
  */
@@ -142,57 +141,68 @@ export const getCurrentLine = (
 export const getCursorCoordinates = (
   textareaElement: HTMLTextAreaElement,
   cursorPosition: number
-): { top: number; left: number } | undefined => {
-  // Create a hidden div to measure text dimensions
-  const div = document.createElement('div');
-  const span = document.createElement('span');
-  
-  // Copy styles from textarea to the div
-  const styles = window.getComputedStyle(textareaElement);
-  const textBeforeCursor = textareaElement.value.substring(0, cursorPosition);
-  
-  // Apply the same styles to the div as the textarea
-  div.style.position = 'absolute';
-  div.style.top = '0';
-  div.style.left = '-9999px';
-  div.style.width = styles.width;
-  div.style.height = 'auto';
-  div.style.whiteSpace = 'pre-wrap';
-  div.style.wordBreak = 'break-word';
-  div.style.fontSize = styles.fontSize;
-  div.style.fontFamily = styles.fontFamily;
-  div.style.lineHeight = styles.lineHeight;
-  div.style.padding = styles.padding;
-  div.style.border = styles.border;
-  div.style.boxSizing = styles.boxSizing;
-  
-  // Add content up to cursor position
-  div.textContent = textBeforeCursor;
-  // Add a span at cursor position
-  span.textContent = '';
-  div.appendChild(span);
-  
-  document.body.appendChild(div);
-  
-  // Get coordinates
-  const { top, left } = span.getBoundingClientRect();
-  const textareaRect = textareaElement.getBoundingClientRect();
-  
-  // Clean up
-  document.body.removeChild(div);
-  
-  return {
-    top: top - textareaRect.top + 20, // Add a little offset to position below cursor
-    left: left - textareaRect.left
-  };
+): { top: number; left: number } | null => {
+  try {
+    // Create a hidden div to measure text dimensions
+    const div = document.createElement('div');
+    const span = document.createElement('span');
+    
+    // Copy styles from textarea to the div
+    const styles = window.getComputedStyle(textareaElement);
+    const textBeforeCursor = textareaElement.value.substring(0, cursorPosition);
+    
+    // Apply the same styles to the div as the textarea
+    div.style.position = 'absolute';
+    div.style.top = '0';
+    div.style.left = '-9999px';
+    div.style.width = styles.width;
+    div.style.height = 'auto';
+    div.style.whiteSpace = 'pre-wrap';
+    div.style.wordBreak = 'break-word';
+    div.style.fontSize = styles.fontSize;
+    div.style.fontFamily = styles.fontFamily;
+    div.style.lineHeight = styles.lineHeight;
+    div.style.padding = styles.padding;
+    div.style.border = styles.border;
+    div.style.boxSizing = styles.boxSizing;
+    
+    // Add content up to cursor position
+    div.textContent = textBeforeCursor;
+    // Add a span at cursor position
+    span.textContent = '';
+    div.appendChild(span);
+    
+    document.body.appendChild(div);
+    
+    // Get coordinates
+    const spanRect = span.getBoundingClientRect();
+    const textareaRect = textareaElement.getBoundingClientRect();
+    
+    // Clean up
+    document.body.removeChild(div);
+    
+    return {
+      top: spanRect.top - textareaRect.top + 20, // Add offset to position below cursor
+      left: spanRect.left - textareaRect.left
+    };
+  } catch (error) {
+    console.error('Error calculating cursor coordinates:', error);
+    // Fallback to a basic position if calculation fails
+    const textareaRect = textareaElement.getBoundingClientRect();
+    return {
+      top: 50,  // Default position
+      left: 50
+    };
+  }
 };
 
 /**
  * Check if text contains a slash command
  */
 export const checkForSlashCommand = (text: string): string | null => {
-  // Check if the text has a slash followed by any characters (no spaces)
-  const match = text.match(/\/(\w*)$/);
+  // More robust regex to detect slash commands at the end of the text
+  const match = text.match(/\/\w*$/);
+  console.log('Checking for slash command in:', text, 'Result:', match ? match[0] : null);
   return match ? match[0] : null;
 };
 

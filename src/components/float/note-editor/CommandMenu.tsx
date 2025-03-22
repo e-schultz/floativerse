@@ -43,6 +43,7 @@ interface CommandMenuProps {
   commands: CommandOption[];
   searchTerm: string;
   position?: { top: number; left: number } | null;
+  onExecuteCommand?: (commandId: string) => void;
 }
 
 const CommandMenu: React.FC<CommandMenuProps> = ({ 
@@ -50,7 +51,8 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
   onClose, 
   commands,
   searchTerm,
-  position
+  position,
+  onExecuteCommand
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -77,16 +79,24 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
       document.removeEventListener('keydown', handleEscapeKey);
     };
   }, [isOpen, onClose]);
+  
+  // Log when the component renders to help debug visibility issues
+  useEffect(() => {
+    console.log('CommandMenu rendered, isOpen:', isOpen, 'position:', position);
+  }, [isOpen, position]);
 
-  if (!isOpen || !position) return null;
+  if (!isOpen || !position) {
+    console.log('CommandMenu not showing because:', !isOpen ? 'not open' : 'no position');
+    return null;
+  }
 
   return (
     <div 
       ref={menuRef}
       className="absolute z-50 w-72 rounded-md border bg-[#222222] shadow-lg overflow-hidden"
       style={{
-        top: position.top || 'auto',
-        left: position.left || 'auto',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
       }}
     >
       <Command className="rounded-lg border-0">
@@ -107,8 +117,12 @@ const CommandMenu: React.FC<CommandMenuProps> = ({
               <CommandItem
                 key={command.id}
                 onSelect={() => {
-                  command.action();
-                  onClose();
+                  if (onExecuteCommand) {
+                    onExecuteCommand(command.id);
+                  } else {
+                    command.action();
+                    onClose();
+                  }
                 }}
                 className="hover:bg-[#2A2A2A] cursor-pointer"
               >

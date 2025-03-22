@@ -47,43 +47,26 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     isDeleting
   } = useNoteEditor({ noteId: effectiveNoteId });
   
-  // Monitor content changes to detect slash commands
-  useEffect(() => {
+  // Handle text input and check for slash commands
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value;
+    setContent(newContent);
+    
     if (!textareaRef.current) return;
     
-    const cursorPosition = textareaRef.current.selectionStart;
-    const lineStart = content.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const lineText = content.substring(lineStart, cursorPosition);
+    const cursorPosition = e.target.selectionStart;
+    const lineStart = newContent.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const lineText = newContent.substring(lineStart, cursorPosition);
     
+    // Check for slash command at the end of the line
     const command = checkForSlashCommand(lineText);
+    console.log('Command detected:', command); // Debug log
     
     if (command) {
       // Calculate cursor position for showing the command menu
       const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
-      if (coords) {
-        setMenuPosition(coords);
-        setSlashCommand(command.replace('/', ''));
-        setShowCommandMenu(true);
-      }
-    } else {
-      setShowCommandMenu(false);
-      setMenuPosition(null);
-    }
-  }, [content, textareaRef]);
-  
-  // Handle text change to constantly update the command menu position
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
-    
-    // Immediately check for slash command
-    const cursorPosition = e.target.selectionStart;
-    const lineStart = e.target.value.lastIndexOf('\n', cursorPosition - 1) + 1;
-    const lineText = e.target.value.substring(lineStart, cursorPosition);
-    
-    const command = checkForSlashCommand(lineText);
-    
-    if (command) {
-      const coords = getCursorCoordinates(e.target, cursorPosition);
+      console.log('Coords:', coords); // Debug log
+      
       if (coords) {
         setMenuPosition(coords);
         setSlashCommand(command.replace('/', ''));
@@ -94,6 +77,43 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       setMenuPosition(null);
     }
   };
+  
+  // Also check for commands when cursor position changes (clicking around)
+  const handleSelectionChange = () => {
+    if (!textareaRef.current) return;
+    
+    const cursorPosition = textareaRef.current.selectionStart;
+    const lineStart = content.lastIndexOf('\n', cursorPosition - 1) + 1;
+    const lineText = content.substring(lineStart, cursorPosition);
+    
+    const command = checkForSlashCommand(lineText);
+    
+    if (command) {
+      const coords = getCursorCoordinates(textareaRef.current, cursorPosition);
+      if (coords) {
+        setMenuPosition(coords);
+        setSlashCommand(command.replace('/', ''));
+        setShowCommandMenu(true);
+      }
+    } else {
+      setShowCommandMenu(false);
+      setMenuPosition(null);
+    }
+  };
+  
+  // Add event listener for selection changes
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    textarea.addEventListener('click', handleSelectionChange);
+    textarea.addEventListener('keyup', handleSelectionChange);
+    
+    return () => {
+      textarea.removeEventListener('click', handleSelectionChange);
+      textarea.removeEventListener('keyup', handleSelectionChange);
+    };
+  }, [textareaRef.current, content]);
   
   // Handle sending prompts to AI
   const handleSendPrompt = async (type: string) => {
@@ -148,6 +168,14 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
     setShowCommandMenu(false);
     setSlashCommand('');
     setMenuPosition(null);
+  };
+  
+  const executeCommand = (commandId: string) => {
+    const command = commands.find(cmd => cmd.id === commandId);
+    if (command) {
+      command.action();
+      handleCloseCommandMenu();
+    }
   };
   
   if (isLoading && effectiveNoteId) {
@@ -211,11 +239,12 @@ In a real implementation, this would call an API like OpenAI's GPT-4 and return 
           
           {showCommandMenu && menuPosition && (
             <CommandMenu 
-              isOpen={true} 
+              isOpen={showCommandMenu}
               onClose={handleCloseCommandMenu}
               commands={commands}
               searchTerm={slashCommand}
               position={menuPosition}
+              onExecuteCommand={executeCommand}
             />
           )}
         </div>
