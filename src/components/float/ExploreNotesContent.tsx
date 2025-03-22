@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Tag, ArrowLeft, BookOpen, Filter } from 'lucide-react';
@@ -14,65 +14,22 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-
-// Mock data for notes to explore
-const allNotesData = [
-  {
-    id: '1',
-    title: 'Concept Drift Mappings',
-    excerpt: 'Stitching thoughts to time-stamped annotations creates a cohesive narrative of mental evolution.',
-    tags: ['concept', 'knowledge', 'evolution'],
-    date: 'Oct 12, 2023',
-    views: 24
-  },
-  {
-    id: '2',
-    title: 'Cognitive Loops and Recursion',
-    excerpt: 'Examining the patterns of thought that create self-referential structures in knowledge systems.',
-    tags: ['cognition', 'patterns', 'recursion'],
-    date: 'Oct 15, 2023',
-    views: 18
-  },
-  {
-    id: '3',
-    title: 'Paradoxical Illuminations',
-    excerpt: 'Highlighting contradictions within content can reveal deeper truths and unexpected connections.',
-    tags: ['paradox', 'insight', 'connections'],
-    date: 'Oct 20, 2023',
-    views: 32
-  },
-  {
-    id: '4',
-    title: 'Constellatory Graphics',
-    excerpt: 'Visualizing the evolution of thoughts as a graphic tale spanning multiple connected nodes.',
-    tags: ['visualization', 'networks', 'evolution'],
-    date: 'Oct 25, 2023',
-    views: 15
-  },
-  {
-    id: '5',
-    title: 'Temporal Knowledge Structures',
-    excerpt: 'How time affects the relevance and connections between ideas in a personal knowledge system.',
-    tags: ['time', 'structure', 'knowledge'],
-    date: 'Nov 1, 2023',
-    views: 29
-  },
-  {
-    id: '6',
-    title: 'Semantic Bridges',
-    excerpt: 'Creating meaningful connections between seemingly unrelated concepts through contextual anchors.',
-    tags: ['semantics', 'connections', 'context'],
-    date: 'Nov 5, 2023',
-    views: 21
-  }
-];
-
-// Aggregate all unique tags
-const allTags = [...new Set(allNotesData.flatMap(note => note.tags))];
+import { useExploreNotes, getRelativeTime, formatDate } from '@/utils/notesStorage';
 
 export const ExploreNotesContent = () => {
+  const { data: notesData = [], isLoading } = useExploreNotes();
   const [activeViewType, setActiveViewType] = useState('grid');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Extract all unique tags from real notes data
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    notesData.forEach(note => {
+      note.tags.forEach(tag => tagsSet.add(tag));
+    });
+    return Array.from(tagsSet);
+  }, [notesData]);
 
   const toggleTag = (tag: string) => {
     if (selectedTags.includes(tag)) {
@@ -82,12 +39,29 @@ export const ExploreNotesContent = () => {
     }
   };
 
-  // Filter notes based on selected tags
-  const filteredNotes = selectedTags.length > 0
-    ? allNotesData.filter(note => 
+  // Filter notes based on selected tags and search query
+  const filteredNotes = useMemo(() => {
+    let filtered = notesData;
+    
+    // Filter by search query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(note => 
+        note.title.toLowerCase().includes(query) || 
+        note.content.toLowerCase().includes(query) ||
+        note.tags.some(tag => tag.toLowerCase().includes(query))
+      );
+    }
+    
+    // Filter by selected tags
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(note => 
         selectedTags.some(tag => note.tags.includes(tag))
-      )
-    : allNotesData;
+      );
+    }
+    
+    return filtered;
+  }, [notesData, selectedTags, searchQuery]);
 
   return (
     <div className="min-h-screen pt-16 pr-4 pb-16 pl-4">
@@ -128,6 +102,8 @@ export const ExploreNotesContent = () => {
                   type="text"
                   placeholder="Search across all notes..."
                   className="float-input w-full pl-10 pr-4 py-2"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
               
@@ -177,99 +153,109 @@ export const ExploreNotesContent = () => {
             </Tabs>
           </div>
 
-          <Tabs value={activeViewType} className="w-full">
-            <TabsContent value="grid" className="mt-0">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {filteredNotes.map((note, index) => (
-                  <motion.div
-                    key={note.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 + (index * 0.05) }}
-                  >
-                    <Card className="float-card hover:translate-y-[-2px] transition-all">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-xl">{note.title}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-float-text-secondary mb-4">{note.excerpt}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {note.tags.map(tag => (
-                            <span 
-                              key={tag} 
-                              className={`px-2 py-1 rounded-full text-xs ${
-                                selectedTags.includes(tag)
-                                  ? "bg-float-accent text-white"
-                                  : "bg-float-accent/10 text-float-accent"
-                              }`}
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </CardContent>
-                      <CardFooter className="flex justify-between items-center pt-2">
-                        <span className="text-xs text-float-text-secondary">
-                          Created: {note.date} • {note.views} views
-                        </span>
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link to={`/note/editor/${note.id}`}>View & Edit</Link>
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  </motion.div>
-                ))}
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="table" className="mt-0">
-              <Card className="float-card">
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Tags</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Views</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredNotes.map((note) => (
-                        <TableRow key={note.id}>
-                          <TableCell className="font-medium">{note.title}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {note.tags.map(tag => (
-                                <span 
-                                  key={tag} 
-                                  className={`px-2 py-0.5 rounded-full text-xs ${
-                                    selectedTags.includes(tag)
-                                      ? "bg-float-accent text-white"
-                                      : "bg-float-accent/10 text-float-accent"
-                                  }`}
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>{note.date}</TableCell>
-                          <TableCell>{note.views}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link to={`/note/editor/${note.id}`}>View & Edit</Link>
-                            </Button>
-                          </TableCell>
+          {isLoading ? (
+            <div className="text-center py-10">
+              <p className="text-float-text-secondary">Loading notes...</p>
+            </div>
+          ) : (
+            <Tabs value={activeViewType} className="w-full">
+              <TabsContent value="grid" className="mt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  {filteredNotes.map((note, index) => (
+                    <motion.div
+                      key={note.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.1 + (index * 0.05) }}
+                    >
+                      <Card className="float-card hover:translate-y-[-2px] transition-all">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-xl">{note.title}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-float-text-secondary mb-4">
+                            {note.content.length > 150 
+                              ? `${note.content.substring(0, 150)}...` 
+                              : note.content}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {note.tags.map(tag => (
+                              <span 
+                                key={tag} 
+                                className={`px-2 py-1 rounded-full text-xs ${
+                                  selectedTags.includes(tag)
+                                    ? "bg-float-accent text-white"
+                                    : "bg-float-accent/10 text-float-accent"
+                                }`}
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </CardContent>
+                        <CardFooter className="flex justify-between items-center pt-2">
+                          <span className="text-xs text-float-text-secondary">
+                            Created: {formatDate(note.created_at)} • Updated: {getRelativeTime(note.updated_at)}
+                          </span>
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link to={`/note/editor/${note.id}`}>View & Edit</Link>
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="table" className="mt-0">
+                <Card className="float-card">
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Tags</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Updated</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredNotes.map((note) => (
+                          <TableRow key={note.id}>
+                            <TableCell className="font-medium">{note.title}</TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1">
+                                {note.tags.map(tag => (
+                                  <span 
+                                    key={tag} 
+                                    className={`px-2 py-0.5 rounded-full text-xs ${
+                                      selectedTags.includes(tag)
+                                        ? "bg-float-accent text-white"
+                                        : "bg-float-accent/10 text-float-accent"
+                                    }`}
+                                  >
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </TableCell>
+                            <TableCell>{formatDate(note.created_at)}</TableCell>
+                            <TableCell>{getRelativeTime(note.updated_at)}</TableCell>
+                            <TableCell className="text-right">
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link to={`/note/editor/${note.id}`}>View & Edit</Link>
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          )}
         </motion.div>
       </div>
     </div>

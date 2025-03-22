@@ -32,6 +32,25 @@ export const useNotes = () => {
   });
 };
 
+// Get all public notes for explore page
+export const useExploreNotes = () => {
+  return useQuery({
+    queryKey: ['explore-notes'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('notes')
+        .select('*')
+        .order('updated_at', { ascending: false });
+        
+      if (error) {
+        throw new Error(error.message);
+      }
+      
+      return data as Note[];
+    }
+  });
+};
+
 // Get a single note by ID
 export const useNote = (id: string) => {
   return useQuery({
