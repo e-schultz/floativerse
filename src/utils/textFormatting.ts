@@ -218,8 +218,16 @@ export const processAIPrompt = (
   
   const { text, lineStart, lineEnd } = lineInfo;
   
-  // Remove the /send command from the prompt
-  const cleanedPrompt = text.replace(/\/send\s*$/, '').trim();
+  // Clean the prompt based on the prompt type
+  let cleanedPrompt = text;
+  
+  if (promptType === 'send') {
+    // Remove the /send command if present
+    cleanedPrompt = text.replace(/\/send\s*$/, '').trim();
+  } else if (promptType === 'chat') {
+    // For chat prompt, take the entire note content for context
+    cleanedPrompt = textareaElement.value.trim();
+  }
   
   return {
     prompt: cleanedPrompt,
@@ -238,7 +246,9 @@ export const insertAIResponse = (
   if (!textareaElement) return '';
   
   const text = textareaElement.value;
-  const formattedResponse = `\n\n> ${response}\n\n`;
+  
+  // Format the response with markdown blockquote
+  const formattedResponse = `\n\n> ${response.replace(/\n/g, '\n> ')}\n\n`;
   
   const newText = text.substring(0, position) + formattedResponse + text.substring(position);
   textareaElement.value = newText;
@@ -248,4 +258,3 @@ export const insertAIResponse = (
   
   return newText;
 };
-

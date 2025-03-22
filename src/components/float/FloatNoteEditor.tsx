@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -19,6 +18,7 @@ import {
   getCursorCoordinates,
   formatTextInTextarea 
 } from '@/utils/textFormatting';
+import { generateAIResponse } from '@/services/aiService';
 
 interface FloatNoteEditorProps {
   noteId?: string;
@@ -129,20 +129,24 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setIsProcessingAI(true);
     
     try {
-      // Mock AI response for demo
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Real AI integration
+      const response = await generateAIResponse(prompt);
       
-      const mockResponse = `This is a simulated AI response to: "${prompt}"
-      
-In a real implementation, this would call an API like OpenAI's GPT-4 and return the actual response.`;
-      
-      const newContent = insertAIResponse(textareaRef.current, mockResponse, insertPosition);
-      setContent(newContent);
-      
-      toast({
-        title: "AI response added",
-        description: "The AI response has been added to your note",
-      });
+      if (response.success) {
+        const newContent = insertAIResponse(textareaRef.current, response.text, insertPosition);
+        setContent(newContent);
+        
+        toast({
+          title: "AI response added",
+          description: "The AI response has been added to your note",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.error || "Failed to get AI response",
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Error getting AI response:', error);
       toast({
