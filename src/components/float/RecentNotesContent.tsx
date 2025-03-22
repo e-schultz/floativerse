@@ -1,17 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Clock, Search, Tag, ArrowLeft } from 'lucide-react';
+import { Clock, Search, Tag, ArrowLeft, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
-import { getNotes, getRelativeTime, formatDate } from '@/utils/notesStorage';
-import type { Note } from '@/utils/notesStorage';
+import { useNotes, getRelativeTime, formatDate } from '@/utils/notesStorage';
 
 export const RecentNotesContent = () => {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
+  const { data: notes = [], isLoading, isError } = useNotes();
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -19,7 +17,7 @@ export const RecentNotesContent = () => {
   const notesPerPage = 5;
   
   // Get all available tags from notes
-  const allTags = React.useMemo(() => {
+  const allTags = useMemo(() => {
     const tags = new Set<string>();
     notes.forEach(note => {
       note.tags.forEach(tag => tags.add(tag));
@@ -27,15 +25,8 @@ export const RecentNotesContent = () => {
     return Array.from(tags);
   }, [notes]);
   
-  // Load notes from storage
-  useEffect(() => {
-    const storedNotes = getNotes();
-    setNotes(storedNotes);
-    setFilteredNotes(storedNotes);
-  }, []);
-  
   // Filter notes when search query or selected tags change
-  useEffect(() => {
+  const filteredNotes = useMemo(() => {
     let filtered = notes;
     
     // Filter by search query
@@ -55,8 +46,7 @@ export const RecentNotesContent = () => {
       );
     }
     
-    setFilteredNotes(filtered);
-    setCurrentPage(1); // Reset to first page when filters change
+    return filtered;
   }, [searchQuery, selectedTags, notes]);
   
   // Toggle tag selection
@@ -66,6 +56,7 @@ export const RecentNotesContent = () => {
         ? prev.filter(t => t !== tag) 
         : [...prev, tag]
     );
+    setCurrentPage(1); // Reset to first page when filters change
   };
   
   // Calculate pagination
@@ -82,18 +73,26 @@ export const RecentNotesContent = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="mb-8 flex items-center"
+          className="mb-8 flex items-center justify-between"
         >
-          <Button variant="ghost" size="sm" className="mr-4" asChild>
-            <Link to="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
+          <div className="flex items-center">
+            <Button variant="ghost" size="sm" className="mr-4" asChild>
+              <Link to="/">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Home
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold flex items-center">
+              <Clock className="mr-3 h-6 w-6 text-float-accent" />
+              Recent Notes
+            </h1>
+          </div>
+          <Button asChild>
+            <Link to="/note/editor" className="flex items-center">
+              <Plus className="mr-2 h-4 w-4" />
+              New Note
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold flex items-center">
-            <Clock className="mr-3 h-6 w-6 text-float-accent" />
-            Recent Notes
-          </h1>
         </motion.div>
 
         <motion.div 
@@ -111,7 +110,10 @@ export const RecentNotesContent = () => {
                   placeholder="Search your recent notes..."
                   className="float-input w-full pl-10 pr-4 py-2"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1); // Reset to first page when search changes
+                  }}
                 />
               </div>
               <Button 
@@ -147,7 +149,10 @@ export const RecentNotesContent = () => {
                 {selectedTags.length > 0 && (
                   <button 
                     className="px-2.5 py-1 rounded-full text-xs border border-gray-300 text-gray-500"
-                    onClick={() => setSelectedTags([])}
+                    onClick={() => {
+                      setSelectedTags([]);
+                      setCurrentPage(1); // Reset to first page when clearing tags
+                    }}
                   >
                     Clear All
                   </button>
@@ -157,7 +162,15 @@ export const RecentNotesContent = () => {
           </div>
         </motion.div>
 
-        {filteredNotes.length === 0 ? (
+        {isLoading ? (
+          <div className="text-center py-10">
+            <p className="text-float-text-secondary">Loading notes...</p>
+          </div>
+        ) : isError ? (
+          <div className="text-center py-10">
+            <p className="text-float-text-secondary">Error loading notes. Please try again later.</p>
+          </div>
+        ) : filteredNotes.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-float-text-secondary">No notes found. Try adjusting your search or creating a new note.</p>
             <Button className="mt-4" asChild>
@@ -178,7 +191,7 @@ export const RecentNotesContent = () => {
                     <CardTitle className="text-xl flex justify-between items-center">
                       {note.title}
                       <span className="text-sm font-normal text-float-text-secondary">
-                        Last edited: {getRelativeTime(note.updatedAt)}
+                        Last edited: {getRelativeTime(note.updated_at)}
                       </span>
                     </CardTitle>
                   </CardHeader>
@@ -201,7 +214,7 @@ export const RecentNotesContent = () => {
                   </CardContent>
                   <CardFooter className="flex justify-between items-center pt-2">
                     <span className="text-xs text-float-text-secondary">
-                      {formatDate(note.createdAt)}
+                      {formatDate(note.created_at)}
                     </span>
                     <Button variant="ghost" size="sm" asChild>
                       <Link to={`/note/editor/${note.id}`}>View & Edit</Link>

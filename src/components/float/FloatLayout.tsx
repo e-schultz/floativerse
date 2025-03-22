@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import FloatSidebar from './FloatSidebar';
 import FloatContent from './FloatContent';
 import FloatMessagesContainer, { MessageProps } from './FloatMessage';
+import FloatHeaderActions from './FloatHeaderActions';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const FloatLayout = ({ children }: { children?: React.ReactNode }) => {
@@ -30,13 +31,12 @@ const FloatLayout = ({ children }: { children?: React.ReactNode }) => {
   return (
     <div className="min-h-screen flex w-full bg-float-bg">
       <FloatSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      {children ? (
-        <main className={`min-h-screen flex-1 transition-all duration-300 ${isMobile ? "pl-4" : sidebarOpen ? "pl-64" : "pl-16"}`}>
-          {children}
-        </main>
-      ) : (
-        <FloatContent sidebarOpen={sidebarOpen} />
-      )}
+      <div className={`min-h-screen flex-1 transition-all duration-300 ${isMobile ? "pl-4" : sidebarOpen ? "pl-64" : "pl-16"}`}>
+        <div className="flex justify-end p-4">
+          <FloatHeaderActions />
+        </div>
+        {children ? children : <FloatContent sidebarOpen={sidebarOpen} />}
+      </div>
       <FloatMessagesContainer messages={messagesWithHandlers} onClose={handleCloseMessage} />
     </div>
   );

@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { getNoteById, saveNote, updateNote, deleteNote } from '@/utils/notesStorage';
+import { useNote, useCreateNote, useUpdateNote, useDeleteNote } from '@/utils/notesStorage';
 import type { Note } from '@/utils/notesStorage';
 
 interface FloatNoteEditorProps {
@@ -35,33 +35,34 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  
+  const { data: note, isLoading, isError } = useNote(effectiveNoteId || '');
+  const createNote = useCreateNote();
+  const updateNote = useUpdateNote();
+  const deleteNote = useDeleteNote();
   
   // Load note data if editing an existing note
   useEffect(() => {
-    if (effectiveNoteId) {
-      setIsLoading(true);
-      const note = getNoteById(effectiveNoteId);
-      
-      if (note) {
-        setTitle(note.title);
-        setContent(note.content);
-        setTags(note.tags);
-      } else {
-        toast({
-          title: "Note not found",
-          description: "The requested note could not be found",
-          variant: "destructive"
-        });
-        navigate('/recent-notes');
-      }
-      
-      setIsLoading(false);
+    if (note) {
+      setTitle(note.title);
+      setContent(note.content);
+      setTags(note.tags);
     }
-  }, [effectiveNoteId, navigate]);
+  }, [note]);
+
+  // Handle errors in note loading
+  useEffect(() => {
+    if (isError && effectiveNoteId) {
+      toast({
+        title: "Note not found",
+        description: "The requested note could not be found",
+        variant: "destructive"
+      });
+      navigate('/recent-notes');
+    }
+  }, [isError, effectiveNoteId, navigate]);
   
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) {
       toast({
         title: "Title required",
@@ -71,53 +72,54 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       return;
     }
     
-    setIsSaving(true);
-    
     try {
       if (effectiveNoteId) {
         // Update existing note
-        updateNote(effectiveNoteId, { title, content, tags });
+        await updateNote.mutateAsync({
+          id: effectiveNoteId,
+          updates: { title, content, tags }
+        });
+        
         toast({
           title: "Note updated",
           description: "Your note has been successfully updated",
         });
       } else {
         // Create new note
-        saveNote({ title, content, tags });
+        await createNote.mutateAsync({ title, content, tags });
+        
         toast({
           title: "Note created",
           description: "Your new note has been successfully saved",
         });
         navigate('/recent-notes');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving note:', error);
       toast({
         title: "Error saving note",
-        description: "There was a problem saving your note",
+        description: error.message || "There was a problem saving your note",
         variant: "destructive"
       });
-    } finally {
-      setIsSaving(false);
     }
   };
   
-  const handleDeleteNote = () => {
+  const handleDeleteNote = async () => {
     if (!effectiveNoteId) return;
     
     if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
-      const deleted = deleteNote(effectiveNoteId);
-      
-      if (deleted) {
+      try {
+        await deleteNote.mutateAsync(effectiveNoteId);
+        
         toast({
           title: "Note deleted",
           description: "Your note has been successfully deleted",
         });
         navigate('/recent-notes');
-      } else {
+      } catch (error: any) {
         toast({
           title: "Error deleting note",
-          description: "There was a problem deleting your note",
+          description: error.message || "There was a problem deleting your note",
           variant: "destructive"
         });
       }
@@ -135,7 +137,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
   
-  if (isLoading) {
+  if (isLoading && effectiveNoteId) {
     return (
       <div className="w-full max-w-4xl mx-auto pt-16 px-4 text-center">
         <p>Loading note...</p>
@@ -171,8 +173,9 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
             size="sm"
             onClick={handleDeleteNote}
             className="ml-auto"
+            disabled={deleteNote.isPending}
           >
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
+            <Trash2 className="mr-2 h-4 w-4" /> {deleteNote.isPending ? 'Deleting...' : 'Delete'}
           </Button>
         )}
       </div>
@@ -266,9 +269,9 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
         <Button 
           className="float-button float-button-primary"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={createNote.isPending || updateNote.isPending}
         >
-          {isSaving ? 'Saving...' : <><Save className="mr-2 h-4 w-4" /> Save Note</>}
+          {createNote.isPending || updateNote.isPending ? 'Saving...' : <><Save className="mr-2 h-4 w-4" /> Save Note</>}
         </Button>
       </div>
     </motion.div>
