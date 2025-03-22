@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   Bold, 
@@ -12,12 +12,15 @@ import {
   Image, 
   Save,
   ArrowLeft,
-  Hash
+  Hash,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
+import { getNoteById, saveNote, updateNote, deleteNote } from '@/utils/notesStorage';
+import type { Note } from '@/utils/notesStorage';
 
 interface FloatNoteEditorProps {
   noteId?: string;
@@ -25,46 +28,99 @@ interface FloatNoteEditorProps {
 
 const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const navigate = useNavigate();
-  const [title, setTitle] = useState(noteId ? 'Loading...' : 'Untitled Note');
+  const { id } = useParams();
+  const effectiveNoteId = noteId || id;
+  
+  const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
-  // Simulate loading a note if noteId is provided
-  React.useEffect(() => {
-    if (noteId) {
-      // In a real app, we would fetch the note data from a backend
-      setTimeout(() => {
-        // Mock data for demonstration
-        const mockNote = {
-          title: noteId === '1' ? 'Concept Drift Mappings' : 
-                 noteId === '2' ? 'Cognitive Loops and Recursion' :
-                 noteId === '3' ? 'Paradoxical Illuminations' :
-                 noteId === '4' ? 'Constellatory Graphics' : 'Note ' + noteId,
-          content: 'This is the content of note ' + noteId + '. In a real application, this would be loaded from a database.',
-          tags: ['sample', 'note', noteId === '1' ? 'concept' : 
-                noteId === '2' ? 'cognition' : 
-                noteId === '3' ? 'paradox' : 
-                noteId === '4' ? 'visualization' : 'misc']
-        };
-        
-        setTitle(mockNote.title);
-        setContent(mockNote.content);
-        setTags(mockNote.tags);
-      }, 500);
+  // Load note data if editing an existing note
+  useEffect(() => {
+    if (effectiveNoteId) {
+      setIsLoading(true);
+      const note = getNoteById(effectiveNoteId);
+      
+      if (note) {
+        setTitle(note.title);
+        setContent(note.content);
+        setTags(note.tags);
+      } else {
+        toast({
+          title: "Note not found",
+          description: "The requested note could not be found",
+          variant: "destructive"
+        });
+        navigate('/recent-notes');
+      }
+      
+      setIsLoading(false);
     }
-  }, [noteId]);
+  }, [effectiveNoteId, navigate]);
   
   const handleSave = () => {
-    // In a real app, we would save the note to a backend
-    console.log('Saving note:', { title, content, tags });
-    toast({
-      title: "Note saved",
-      description: "Your note has been successfully saved",
-    });
+    if (!title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please add a title to your note",
+        variant: "destructive"
+      });
+      return;
+    }
     
-    if (!noteId) {
-      navigate('/');
+    setIsSaving(true);
+    
+    try {
+      if (effectiveNoteId) {
+        // Update existing note
+        updateNote(effectiveNoteId, { title, content, tags });
+        toast({
+          title: "Note updated",
+          description: "Your note has been successfully updated",
+        });
+      } else {
+        // Create new note
+        saveNote({ title, content, tags });
+        toast({
+          title: "Note created",
+          description: "Your new note has been successfully saved",
+        });
+        navigate('/recent-notes');
+      }
+    } catch (error) {
+      console.error('Error saving note:', error);
+      toast({
+        title: "Error saving note",
+        description: "There was a problem saving your note",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handleDeleteNote = () => {
+    if (!effectiveNoteId) return;
+    
+    if (window.confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
+      const deleted = deleteNote(effectiveNoteId);
+      
+      if (deleted) {
+        toast({
+          title: "Note deleted",
+          description: "Your note has been successfully deleted",
+        });
+        navigate('/recent-notes');
+      } else {
+        toast({
+          title: "Error deleting note",
+          description: "There was a problem deleting your note",
+          variant: "destructive"
+        });
+      }
     }
   };
   
@@ -79,6 +135,14 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     setTags(tags.filter(tag => tag !== tagToRemove));
   };
   
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-4xl mx-auto pt-16 px-4 text-center">
+        <p>Loading note...</p>
+      </div>
+    );
+  }
+  
   return (
     <motion.div 
       className="w-full max-w-4xl mx-auto pt-16 px-4"
@@ -86,18 +150,31 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <div className="mb-6 flex items-center">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => navigate('/')}
-          className="mr-3"
-        >
-          <ArrowLeft size={20} />
-        </Button>
-        <h1 className="text-2xl font-bold">
-          {noteId ? 'Edit Note' : 'Create New Note'}
-        </h1>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate('/recent-notes')}
+            className="mr-3"
+          >
+            <ArrowLeft size={20} />
+          </Button>
+          <h1 className="text-2xl font-bold">
+            {effectiveNoteId ? 'Edit Note' : 'Create New Note'}
+          </h1>
+        </div>
+        
+        {effectiveNoteId && (
+          <Button 
+            variant="destructive" 
+            size="sm"
+            onClick={handleDeleteNote}
+            className="ml-auto"
+          >
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          </Button>
+        )}
       </div>
       
       <div className="float-card p-6 mb-6">
@@ -182,15 +259,16 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
         <Button 
           variant="outline" 
           className="mr-2"
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/recent-notes')}
         >
           Cancel
         </Button>
         <Button 
           className="float-button float-button-primary"
           onClick={handleSave}
+          disabled={isSaving}
         >
-          <Save className="mr-2 h-4 w-4" /> Save Note
+          {isSaving ? 'Saving...' : <><Save className="mr-2 h-4 w-4" /> Save Note</>}
         </Button>
       </div>
     </motion.div>
