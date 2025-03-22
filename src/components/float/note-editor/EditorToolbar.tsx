@@ -7,7 +7,8 @@ import {
   List, 
   ListOrdered, 
   Link, 
-  Image 
+  Image,
+  Slash 
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -84,6 +85,13 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onFormatText }) => {
         >
           <Image size={16} />
         </Button>
+        
+        <div className="flex-1"></div>
+        
+        <div className="flex items-center text-muted-foreground text-xs">
+          <Slash size={14} className="mr-1" />
+          <span>Type <kbd className="px-1 rounded bg-muted">/</kbd> for commands</span>
+        </div>
       </div>
     </div>
   );

@@ -41,6 +41,10 @@ export const formatTextInTextarea = (
       formattedText = text.substring(0, start) + `![${selectedText}](image-url)` + text.substring(end);
       newCursorPosition = end + 12;
       break;
+    case 'code':
+      formattedText = text.substring(0, start) + '`' + selectedText + '`' + text.substring(end);
+      newCursorPosition = end + 2;
+      break;
     case 'bullet':
       // Get the line where the cursor is
       const lineStart = text.lastIndexOf('\n', start - 1) + 1;
@@ -82,4 +86,80 @@ export const formatTextInTextarea = (
   textareaElement.setSelectionRange(newCursorPosition, newCursorPosition);
   
   return formattedText;
+};
+
+/**
+ * Get the current line of text where the cursor is positioned
+ */
+export const getCurrentLine = (
+  textareaElement: HTMLTextAreaElement | null
+): { text: string, lineStart: number, lineEnd: number } | null => {
+  if (!textareaElement) return null;
+  
+  const cursorPosition = textareaElement.selectionStart;
+  const text = textareaElement.value;
+  
+  const lineStart = text.lastIndexOf('\n', cursorPosition - 1) + 1;
+  const lineEnd = text.indexOf('\n', cursorPosition);
+  const actualLineEnd = lineEnd > -1 ? lineEnd : text.length;
+  const currentLine = text.substring(lineStart, actualLineEnd);
+  
+  return {
+    text: currentLine,
+    lineStart,
+    lineEnd: actualLineEnd
+  };
+};
+
+/**
+ * Check if text contains a slash command
+ */
+export const checkForSlashCommand = (text: string): string | null => {
+  const match = text.match(/\/(\w+)$/);
+  return match ? match[0] : null;
+};
+
+/**
+ * Process a ChatGPT prompt from the current line
+ */
+export const processAIPrompt = (
+  textareaElement: HTMLTextAreaElement | null,
+  promptType: string
+): {prompt: string, insertPosition: number} | null => {
+  if (!textareaElement) return null;
+  
+  const lineInfo = getCurrentLine(textareaElement);
+  if (!lineInfo) return null;
+  
+  const { text, lineStart, lineEnd } = lineInfo;
+  
+  // Remove the /send command from the prompt
+  const cleanedPrompt = text.replace(/\/send\s*$/, '').trim();
+  
+  return {
+    prompt: cleanedPrompt,
+    insertPosition: lineEnd
+  };
+};
+
+/**
+ * Insert AI response into the text
+ */
+export const insertAIResponse = (
+  textareaElement: HTMLTextAreaElement | null,
+  response: string,
+  position: number
+): string => {
+  if (!textareaElement) return '';
+  
+  const text = textareaElement.value;
+  const formattedResponse = `\n\n> ${response}\n\n`;
+  
+  const newText = text.substring(0, position) + formattedResponse + text.substring(position);
+  textareaElement.value = newText;
+  
+  const newCursorPosition = position + formattedResponse.length;
+  textareaElement.setSelectionRange(newCursorPosition, newCursorPosition);
+  
+  return newText;
 };
