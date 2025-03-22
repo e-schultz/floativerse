@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -33,6 +34,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
   const [showCommandMenu, setShowCommandMenu] = useState(false);
   const [commandFilter, setCommandFilter] = useState('');
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [commandWithText, setCommandWithText] = useState<string | null>(null);
   
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   
@@ -64,12 +66,13 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     const lineStart = newContent.lastIndexOf('\n', cursorPosition - 1) + 1;
     const currentLineText = newContent.substring(lineStart, cursorPosition);
     
-    const slashCommand = checkForSlashCommand(currentLineText);
+    const slashCommandInfo = checkForSlashCommand(currentLineText);
     
-    if (slashCommand) {
+    if (slashCommandInfo) {
       const position = getCursorCoordinates(textareaRef.current);
       setMenuPosition(position);
-      setCommandFilter(slashCommand);
+      setCommandFilter(slashCommandInfo.command);
+      setCommandWithText(slashCommandInfo.fullText);
       setShowCommandMenu(true);
     } else {
       setShowCommandMenu(false);
@@ -134,7 +137,14 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     
     setShowCommandMenu(false);
     
-    const promptInfo = processAIPrompt(textareaRef.current, type);
+    // Check if we have a command with text after it (e.g., "/send prompt text")
+    let promptInfo;
+    if (commandWithText && (commandWithText.startsWith('/send') || commandWithText.startsWith('/chat'))) {
+      promptInfo = processAIPrompt(textareaRef.current, type, commandWithText);
+    } else {
+      promptInfo = processAIPrompt(textareaRef.current, type);
+    }
+    
     if (!promptInfo) return;
     
     const { prompt, insertPosition } = promptInfo;
@@ -156,6 +166,9 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
       if (response.success) {
         const newContent = insertAIResponse(textareaRef.current, response.text, insertPosition);
         setContent(newContent);
+        
+        // After inserting AI response, clear the commandWithText
+        setCommandWithText(null);
         
         toast({
           title: "AI response added",
@@ -195,6 +208,7 @@ const FloatNoteEditor = ({ noteId }: FloatNoteEditorProps) => {
     }
     
     setShowCommandMenu(false);
+    setCommandWithText(null);
     
     setTimeout(() => {
       if (textareaRef.current) {

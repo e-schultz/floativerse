@@ -188,33 +188,63 @@ export const getCursorCoordinates = (
 
 /**
  * Check for slash command at cursor position
- * Returns the command text (including the slash) if found
+ * Returns the command text (including the slash) and any text after it if found
  */
-export const checkForSlashCommand = (text: string): string | null => {
+export const checkForSlashCommand = (text: string): { command: string, fullText: string } | null => {
   // Check for slash command pattern in the text
-  const match = text.match(/(?:^|\s)(\/\w*)$/);
+  const match = text.match(/(?:^|\s)(\/\w+)(\s+.+)?$/);
   
   if (match) {
-    return match[1]; // Return the matched slash command
+    return {
+      command: match[1], // The command itself (e.g., "/send")
+      fullText: match[0].trim() // The full text including command and any text after it
+    };
   }
   
   // Simple check for just a slash at the beginning of a line or after space
   if (text.endsWith('/') && (text.length === 1 || text[text.length - 2] === ' ' || text[text.length - 2] === '\n')) {
-    return '/';
+    return {
+      command: '/',
+      fullText: '/'
+    };
   }
   
   return null;
 };
 
 /**
- * Process a ChatGPT prompt from the current line
+ * Process a ChatGPT prompt from the current line or command
  */
 export const processAIPrompt = (
   textareaElement: HTMLTextAreaElement | null,
-  promptType: string
+  promptType: string,
+  commandText?: string
 ): {prompt: string, insertPosition: number} | null => {
   if (!textareaElement) return null;
   
+  // If we have command text (like "/send prompt text"), use that directly
+  if (commandText && commandText.startsWith('/')) {
+    const commandMatch = commandText.match(/^\/(\w+)(\s+(.+))?$/);
+    
+    if (commandMatch) {
+      const command = commandMatch[1]; // e.g., "send"
+      const promptText = commandMatch[3] || ''; // The text after the command
+      
+      if (promptText.trim()) {
+        // If we have text after the command, use it as the prompt
+        const cursorPosition = textareaElement.selectionStart;
+        const lineEnd = textareaElement.value.indexOf('\n', cursorPosition);
+        const actualLineEnd = lineEnd > -1 ? lineEnd : textareaElement.value.length;
+        
+        return {
+          prompt: promptText.trim(),
+          insertPosition: actualLineEnd
+        };
+      }
+    }
+  }
+  
+  // Fall back to the original behavior if no command text with content
   const lineInfo = getCurrentLine(textareaElement);
   if (!lineInfo) return null;
   
@@ -225,7 +255,7 @@ export const processAIPrompt = (
   
   if (promptType === 'send') {
     // Remove the /send command if present
-    cleanedPrompt = text.replace(/\/send\s*$/, '').trim();
+    cleanedPrompt = text.replace(/\/send\s*/, '').trim();
   } else if (promptType === 'chat') {
     // For chat prompt, take the entire note content for context
     cleanedPrompt = textareaElement.value.trim();
