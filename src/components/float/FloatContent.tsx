@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -99,7 +100,7 @@ const FloatContent = ({ sidebarOpen }: FloatContentProps) => {
             transition={{ delay: 0.4 }}
             className="flex gap-4 mt-6"
           >
-            <Button className="float-button float-button-primary">
+            <Button className="float-button float-button-primary" as={Link} to="/note/editor">
               <Plus className="mr-2 h-4 w-4" /> Create New Note
             </Button>
             <Button className="float-button" variant="outline">
@@ -138,7 +139,7 @@ const FloatContent = ({ sidebarOpen }: FloatContentProps) => {
                   </div>
                   <div className="flex justify-between items-center mt-2 text-xs text-float-text-secondary">
                     <span>{note.date}</span>
-                    <button className="text-float-primary hover:underline">View note</button>
+                    <Link to={`/note/editor/${note.id}`} className="text-float-primary hover:underline">View note</Link>
                   </div>
                 </motion.div>
               ))}

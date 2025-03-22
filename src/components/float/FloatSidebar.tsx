@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Search, Plus, Star, Clock, Tag, Settings, Menu, X } from 'lucide-react';
@@ -13,6 +14,7 @@ interface FloatSidebarProps {
 
 const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
   
   const sidebarVariants = {
     open: { 
@@ -80,7 +82,7 @@ const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
               variants={itemVariants}
               className={cn("font-semibold text-xl", !isOpen && !isMobile && "opacity-0")}
             >
-              FLOAT
+              <Link to="/">FLOAT</Link>
             </motion.div>
             {!isMobile && (
               <Button
@@ -112,7 +114,10 @@ const FloatSidebar = ({ isOpen, setIsOpen }: FloatSidebarProps) => {
               !isOpen && !isMobile && "opacity-0 invisible"
             )}
           >
-            <Button className="float-button float-button-primary w-full justify-center">
+            <Button 
+              className="float-button float-button-primary w-full justify-center"
+              onClick={() => navigate('/note/editor')}
+            >
               <Plus className="mr-2 h-4 w-4" /> New Note
             </Button>
           </motion.div>

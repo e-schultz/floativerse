@@ -24,13 +24,19 @@ const FloatLayout = ({ children }: { children?: React.ReactNode }) => {
   // Update message onClose handlers
   const messagesWithHandlers = messages.map(message => ({
     ...message,
-    onClose: handleCloseMessage
+    onClose: () => handleCloseMessage(message.id)
   }));
 
   return (
     <div className="min-h-screen flex w-full bg-float-bg">
       <FloatSidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-      <FloatContent sidebarOpen={sidebarOpen} />
+      {children ? (
+        <main className={`min-h-screen flex-1 transition-all duration-300 ${isMobile ? "pl-4" : sidebarOpen ? "pl-64" : "pl-16"}`}>
+          {children}
+        </main>
+      ) : (
+        <FloatContent sidebarOpen={sidebarOpen} />
+      )}
       <FloatMessagesContainer messages={messagesWithHandlers} onClose={handleCloseMessage} />
     </div>
   );
