@@ -1,69 +1,102 @@
-# Welcome to your Lovable project
 
-## Project info
+# FLOAT - Personal Knowledge Management System
 
-**URL**: https://lovable.dev/projects/636243fa-2066-4d15-adce-32b5fbe93a1f
+FLOAT is a modern, intuitive personal knowledge management application designed to help you capture, organize, and explore your thoughts with ease.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+### Note Management
+- Create and edit notes with a rich text editor
+- Organize notes with tags for easy categorization
+- Real-time saving and updating
 
-**Use Lovable**
+### AI Integration
+- Leverage AI assistance directly in your notes with slash commands
+- Extract context from your notes for more relevant AI responses
+- Two primary AI modes:
+  - `/send` - Quick responses for targeted questions
+  - `/chat` - Context-aware conversations about your document
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/636243fa-2066-4d15-adce-32b5fbe93a1f) and start prompting.
+### User Experience
+- Clean, responsive interface
+- Dark/light mode support
+- Mobile-friendly design
 
-Changes made via Lovable will be committed automatically to this repo.
+## Technical Stack
 
-**Use your preferred IDE**
+- **Frontend**: React, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Supabase (Authentication, Database, Edge Functions)
+- **AI**: OpenAI integration via Supabase Edge Functions
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Project Structure
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+```
+src/
+├── api/            # API integration with Supabase
+├── components/     # React components
+│   ├── float/      # App-specific components
+│   └── ui/         # UI component library (shadcn)
+├── hooks/          # React hooks for state and logic
+├── integrations/   # Third-party service integrations
+├── lib/            # Utility libraries
+├── pages/          # Page components
+├── services/       # Service layer
+├── types/          # TypeScript type definitions
+└── utils/          # Utility functions
+    ├── commandDetection.ts    # Slash command processing
+    ├── contextExtraction.ts   # Document context extraction
+    ├── dateFormatting.ts      # Date helpers
+    ├── notesStorage.ts        # Notes persistence
+    └── textFormatting.ts      # Text formatting utilities
+```
 
-Follow these steps:
+## Getting Started
 
+### Prerequisites
+- Node.js (v16+)
+- npm or yarn
+- Supabase account (for backend services)
+
+### Installation
+
+1. Clone the repository
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone <repository-url>
+cd float
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+2. Install dependencies
+```sh
+npm install
+```
 
-# Step 3: Install the necessary dependencies.
-npm i
+3. Set up environment variables
+Create a `.env` file in the root directory with the following variables:
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+4. Start the development server
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### Supabase Setup
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+For the backend functionality to work, you'll need to:
 
-**Use GitHub Codespaces**
+1. Create a Supabase project
+2. Set up the necessary tables:
+   - `notes`: For storing user notes
+   - `profiles`: For user profile information
+3. Configure Edge Functions for AI integration
+4. Set up authentication
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Contributing
 
-## What technologies are used for this project?
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-This project is built with .
+## License
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/636243fa-2066-4d15-adce-32b5fbe93a1f) and click on Share -> Publish.
-
-## I want to use a custom domain - is that possible?
-
-We don't support custom domains (yet). If you want to deploy your project under your own domain then we recommend using Netlify. Visit our docs for more details: [Custom domains](https://docs.lovable.dev/tips-tricks/custom-domain/)
+This project is licensed under the MIT License - see the LICENSE file for details.
